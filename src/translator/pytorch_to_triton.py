@@ -377,24 +377,40 @@ def validate_correctness(
         dict with keys: valid (bool), errors (list), max_diff (float | None)
     """
     import torch
+    import tempfile
+    import importlib.util
+    import os
 
     results = {"valid": False, "errors": [], "max_diff": None}
 
-    namespace = {}
+    # Must write to a real .py file — same reason as validate_gpu():
+    # @triton.jit reads the function's source file at compile time and
+    # cannot compile a function defined via exec() in memory.
+    tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False)
     try:
-        exec(kernel_code, namespace)
+        tmp.write(kernel_code)
+        tmp.close()
+
+        spec   = importlib.util.spec_from_file_location("_triton_kernel_correctness", tmp.name)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
     except Exception as e:
         results["errors"].append(f"Exec failed: {e}")
         return results
+    finally:
+        try:
+            os.unlink(tmp.name)
+        except OSError:
+            pass
 
-    launcher = _find_launcher(namespace)
+    launcher = _find_launcher(vars(module))
     if launcher is None:
         results["errors"].append("No launcher function found in generated code")
         return results
 
     try:
         cuda_inputs = [
-            t.cuda() if isinstance(t, __import__("torch").Tensor) else t
+            t.cuda() if isinstance(t, torch.Tensor) else t
             for t in test_inputs
         ]
         expected = pytorch_fn(*test_inputs)
