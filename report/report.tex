@@ -1,0 +1,640 @@
+\documentclass[12pt]{article}
+
+% ─── Packages ────────────────────────────────────────────────────────────────
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+\usepackage{geometry}
+\usepackage{amsmath, amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{multirow}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{fancyhdr}
+
+\geometry{margin=2.5cm}
+
+% ─── Colors ──────────────────────────────────────────────────────────────────
+\definecolor{codeblue}{RGB}{0,102,204}
+\definecolor{codegray}{RGB}{128,128,128}
+\definecolor{codered}{RGB}{180,0,0}
+
+% ─── Listings ────────────────────────────────────────────────────────────────
+\lstset{
+  basicstyle=\ttfamily\small,
+  breaklines=true,
+  frame=single,
+  numbers=left,
+  numberstyle=\tiny\color{codegray},
+  keywordstyle=\color{codeblue},
+  commentstyle=\color{codegray}\itshape,
+}
+
+% ─── Header / Footer ─────────────────────────────────────────────────────────
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{GPU Kernel Generation — Reporte Experimental}
+\lhead{\leftmark}
+\cfoot{\thepage}
+
+% ─── Title ───────────────────────────────────────────────────────────────────
+\title{
+  \textbf{Generación de Kernels GPU con SLM Aumentado:}\\
+  \large Diseño Experimental y Análisis Estadístico\\[0.5em]
+  \normalsize Comparación contra Modelos Baseline
+}
+\author{Cesar Alan Silva Ramos}
+\date{\today}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+
+% =============================================================================
+% PARTE I — PRE-REGISTRO
+% =============================================================================
+\part{Pre-registro Experimental}
+\textit{Esta sección fue definida antes de ejecutar los experimentos comparativos.}
+
+% -----------------------------------------------------------------------------
+\section{Objetivo Experimental}
+
+El objetivo de este experimento es evaluar si un sistema de generación de kernels GPU
+basado en un Modelo de Lenguaje Pequeño (SLM) augmentado con decodificación restringida
+por gramática (GBNF) y un ciclo de auto-reparación puede igualar o superar la tasa de
+éxito de modelos frontier de mayor escala que utilizan \textit{prompting} directo sin
+restricciones estructurales.
+
+\subsection*{Preguntas de investigación}
+
+\begin{itemize}
+  \item \textbf{¿Qué problema se evalúa?} La generación automática de kernels Triton GPU
+    correctos y compilables a partir de operaciones PyTorch, comparando un método
+    especializado basado en SLM contra modelos baseline de mayor escala.
+
+  \item \textbf{¿Qué se desea demostrar?} Que la combinación de decodificación restringida
+    por gramática + ciclo de auto-reparación permite que un SLM alcance tasas de
+    compilación y corrección comparables a modelos con órdenes de magnitud más parámetros.
+
+  \item \textbf{¿Qué métodos se comparan?}
+    \begin{itemize}
+      \item \textbf{Método propuesto:} SLM (Llama-3.1-8B-Instruct via Fireworks AI) con
+        pipeline especializado: gramática GBNF + validación en tres capas + auto-reparación.
+      \item \textbf{Baseline 1:} Claude Opus 4.7 (Anthropic) — prompting directo, sin
+        restricciones estructurales.
+      \item \textbf{Baseline 2:} GPT-4o (OpenAI) — prompting directo, sin restricciones
+        estructurales.
+    \end{itemize}
+
+  \item \textbf{Justificación de baselines:} Se seleccionaron dos modelos frontier
+    ampliamente utilizados en la industria que representan el estado del arte en
+    generación de código sin ajuste de dominio. La comparación es relevante porque
+    evidencia el valor añadido por la infraestructura especializada frente a la capacidad
+    bruta del modelo.
+\end{itemize}
+
+% -----------------------------------------------------------------------------
+\section{Hipótesis}
+
+Se definen hipótesis para las dos métricas principales: tasa de compilación y tasa de
+corrección numérica.
+
+\subsection{Hipótesis H1 — Tasa de Compilación}
+
+\begin{itemize}
+  \item $H_0^{(1)}$: No existe diferencia significativa en la tasa de compilación
+    entre el método propuesto y Claude Opus 4.7.
+    \[H_0^{(1)}: p_{\text{propuesto}} = p_{\text{Claude}}\]
+
+  \item $H_1^{(1)}$: El método propuesto obtiene una tasa de compilación
+    significativamente mayor o igual a la de Claude Opus 4.7.
+    \[H_1^{(1)}: p_{\text{propuesto}} \geq p_{\text{Claude}}\]
+\end{itemize}
+
+\subsection{Hipótesis H2 — Tasa de Corrección Numérica}
+
+\begin{itemize}
+  \item $H_0^{(2)}$: No existe diferencia significativa en la tasa de corrección
+    numérica entre el método propuesto y GPT-4o.
+    \[H_0^{(2)}: p_{\text{propuesto}} = p_{\text{GPT-4o}}\]
+
+  \item $H_1^{(2)}$: El método propuesto obtiene una tasa de corrección numérica
+    significativamente mayor o igual a la de GPT-4o.
+    \[H_1^{(2)}: p_{\text{propuesto}} \geq p_{\text{GPT-4o}}\]
+\end{itemize}
+
+\subsection{Hipótesis H3 — Intentos hasta Éxito}
+
+\begin{itemize}
+  \item $H_0^{(3)}$: No existe diferencia en el número promedio de intentos LLM
+    hasta obtener un kernel válido entre el método propuesto y los baselines.
+
+  \item $H_1^{(3)}$: El método propuesto requiere un número similar o menor de
+    intentos que los baselines para producir un kernel válido, gracias a la
+    restricción estructural de la gramática.
+\end{itemize}
+
+% -----------------------------------------------------------------------------
+\section{Variables Experimentales}
+
+\subsection{Variables Independientes}
+
+Las variables independientes definen cómo está configurado cada método de generación:
+
+\begin{table}[H]
+\centering
+\caption{Variables independientes por método}
+\begin{tabular}{llll}
+\toprule
+\textbf{Variable} & \textbf{Método Propuesto} & \textbf{Baseline 1 (Claude)} & \textbf{Baseline 2 (GPT-4o)} \\
+\midrule
+Modelo base & Llama-3.1-8B & claude-opus-4-7 & gpt-4o \\
+Parámetros (aprox.) & 8B & $\sim$200B+ & $\sim$200B+ \\
+Proveedor & Fireworks AI & Anthropic & OpenAI \\
+Temperatura & 0.0 & 0.0 & 0.0 \\
+Gramática GBNF & Sí & No & No \\
+Auto-reparación & Sí (máx. 3 intentos) & No & No \\
+Prompt & Sistema + usuario & Solo usuario & Solo usuario \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Variables Dependientes}
+
+Las variables dependientes son las métricas que se miden para realizar la comparación:
+
+\begin{itemize}
+  \item \textbf{Tasa de compilación} ($CR$): Proporción de kernels que pasan la
+    validación de compilación GPU.
+  \item \textbf{Tasa de corrección numérica} ($NR$): Proporción de kernels que pasan
+    \texttt{torch.allclose} contra baseline PyTorch.
+  \item \textbf{Diferencia máxima absoluta} (\textit{max\_diff}): Error numérico
+    máximo entre la salida del kernel y la referencia PyTorch.
+  \item \textbf{Intentos hasta éxito} ($A$): Número de llamadas LLM requeridas para
+    producir un kernel válido.
+  \item \textbf{Speedup} ($S$): Cociente entre el tiempo de ejecución PyTorch y el
+    tiempo del kernel generado.
+    \[S = \frac{t_{\text{PyTorch}}}{t_{\text{kernel}}}\]
+\end{itemize}
+
+\subsection{Variables Controladas}
+
+Las siguientes variables se mantienen fijas en todos los experimentos para garantizar
+comparabilidad:
+
+\begin{itemize}
+  \item \textbf{Hardware:} NVIDIA T4 (Google Colab), misma sesión por método.
+  \item \textbf{Benchmark:} Mismo conjunto de operaciones PyTorch para todos los métodos.
+  \item \textbf{Temperatura:} $T = 0.0$ en todos los modelos (salidas deterministas).
+  \item \textbf{Número de operaciones evaluadas:} $N = 30$ operaciones por método.
+  \item \textbf{Prompt de sistema:} El prompt de sistema del método propuesto incluye
+    reglas explícitas de Triton; los baselines reciben el mismo enunciado de tarea.
+  \item \textbf{Semilla aleatoria de inputs:} \texttt{torch.manual\_seed(42)} para
+    todos los tensores de prueba.
+\end{itemize}
+
+% -----------------------------------------------------------------------------
+\section{Diseño Experimental}
+
+\subsection{Estructura}
+
+Se utiliza un diseño \textbf{within-subjects} (intra-sujeto), donde cada operación
+PyTorch del benchmark es evaluada por los tres métodos. Esto permite comparaciones
+directas por par de operación, reduciendo la variabilidad introducida por diferencias
+en dificultad entre operaciones.
+
+\begin{itemize}
+  \item \textbf{Número de grupos:} 3 (método propuesto, Claude Opus 4.7, GPT-4o).
+  \item \textbf{Número de operaciones por grupo:} 30.
+  \item \textbf{Total de llamadas LLM:} $\geq 90$ (más intentos de reparación).
+\end{itemize}
+
+\subsection{Benchmark de Operaciones}
+
+El benchmark incluye operaciones representativas de tres categorías de complejidad:
+
+\begin{table}[H]
+\centering
+\caption{Categorías del benchmark}
+\begin{tabular}{llp{7cm}}
+\toprule
+\textbf{Categoría} & \textbf{\# ops} & \textbf{Ejemplos} \\
+\midrule
+Elementwise simple & 10 & \texttt{out = x * y + z}, \texttt{out = relu(x)}, \texttt{out = x + y} \\
+Reducción & 10 & \texttt{out = sum(x)}, \texttt{out = max(x, dim=0)} \\
+Compuesta & 10 & \texttt{out = softmax(x)}, \texttt{out = layer\_norm(x, w, b)} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Justificación del Diseño}
+
+El diseño within-subjects se eligió porque:
+\begin{enumerate}
+  \item Elimina la variabilidad entre operaciones al comparar los tres métodos sobre
+    exactamente los mismos inputs.
+  \item Requiere menor tamaño de muestra para el mismo poder estadístico.
+  \item Permite comparaciones pareadas que tienen mayor sensibilidad que comparaciones
+    de grupos independientes.
+\end{enumerate}
+
+% -----------------------------------------------------------------------------
+\section{Métricas}
+
+\begin{table}[H]
+\centering
+\caption{Definición de métricas}
+\begin{tabular}{p{3cm}p{4cm}p{4cm}p{3cm}}
+\toprule
+\textbf{Métrica} & \textbf{Fórmula / Criterio} & \textbf{Interpretación} & \textbf{Limitación} \\
+\midrule
+Tasa de compilación ($CR$) &
+  $CR = \frac{\text{\# kernels compilados}}{\text{\# kernels generados}}$ &
+  Mayor es mejor. $CR=1.0$ indica que todos los kernels compilaron. &
+  No distingue calidad de kernels que compilan pero son incorrectos. \\
+\midrule
+Tasa de corrección ($NR$) &
+  $NR = \frac{\text{\# kernels correctos}}{\text{\# kernels compilados}}$ &
+  Mayor es mejor. Requiere GPU para ejecutar. &
+  Depende de tolerancias \texttt{rtol=1e-3, atol=1e-3}; puede no capturar errores numéricos sutiles. \\
+\midrule
+Max diff &
+  $\max |y_{\text{kernel}} - y_{\text{pytorch}}|$ &
+  Menor es mejor. $0.0$ indica exactitud perfecta. &
+  Valor único; puede ocultar distribución del error. \\
+\midrule
+Intentos ($A$) &
+  Número de llamadas LLM hasta pasar todas las capas de validación. &
+  Menor es mejor. $A=1$ indica éxito en primer intento. &
+  Refleja tanto calidad del modelo como severidad del benchmark. \\
+\midrule
+Speedup ($S$) &
+  $S = t_{\text{pytorch}} / t_{\text{kernel}}$ &
+  $S > 1$: kernel más rápido que PyTorch. $S < 1$: overhead. &
+  Varía por GPU, tamaño de tensor, calentamiento. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\section{Tamaño del Efecto Esperado}
+
+Se espera un efecto mediano ($d = 0.5$, Cohen) en la diferencia de tasas de compilación,
+basado en la suposición de que la gramática GBNF elimina sistemáticamente errores de
+estructura (imports faltantes, decorador \texttt{@triton.jit} ausente) que los baselines
+cometen en una fracción de los casos.
+
+Para tasas de corrección numérica, se espera un efecto menor ($d \approx 0.3$) ya que
+este atributo depende más de la calidad de razonamiento del modelo que de las restricciones
+estructurales.
+
+% -----------------------------------------------------------------------------
+\section{Análisis de Poder}
+
+\begin{itemize}
+  \item \textbf{Nivel de significancia:} $\alpha = 0.05$
+  \item \textbf{Poder estadístico objetivo:} $1 - \beta = 0.80$
+  \item \textbf{Efecto esperado:} $d = 0.5$ (mediano, Cohen)
+  \item \textbf{Tamaño de muestra estimado:} Para una prueba de McNemar con $\alpha=0.05$
+    y poder $0.8$, se requieren aproximadamente $N = 28$ pares. Se utilizarán 30 para
+    proveer un margen de seguridad.
+\end{itemize}
+
+\[
+n \approx \frac{(z_{\alpha/2} + z_{\beta})^2}{(\text{efecto esperado})^2}
+= \frac{(1.96 + 0.84)^2}{0.5^2} \approx 31.4
+\]
+
+Por lo tanto, $N = 30$ operaciones por método es suficiente dado el efecto esperado.
+
+% -----------------------------------------------------------------------------
+\section{Plan Estadístico}
+
+\subsection{Comparaciones Planeadas}
+
+\begin{enumerate}
+  \item Método propuesto vs.\ Claude Opus 4.7 en tasa de compilación.
+  \item Método propuesto vs.\ GPT-4o en tasa de compilación.
+  \item Método propuesto vs.\ Claude Opus 4.7 en tasa de corrección numérica.
+  \item Método propuesto vs.\ GPT-4o en tasa de corrección numérica.
+  \item Método propuesto vs.\ ambos baselines en número de intentos hasta éxito.
+  \item Método propuesto vs.\ ambos baselines en speedup (sólo kernels correctos).
+\end{enumerate}
+
+\subsection{Pruebas Estadísticas}
+
+\begin{table}[H]
+\centering
+\caption{Pruebas estadísticas por métrica}
+\begin{tabular}{lll}
+\toprule
+\textbf{Métrica} & \textbf{Prueba} & \textbf{Justificación} \\
+\midrule
+Tasa de compilación / corrección & Prueba de McNemar &
+  Datos binarios pareados (mismo benchmark) \\
+Intentos hasta éxito & Prueba de Wilcoxon signed-rank &
+  Datos ordinales, no se asume normalidad \\
+Speedup & Prueba de Wilcoxon signed-rank &
+  Distribución de speedup generalmente no normal \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Regla de Decisión}
+
+Se rechazará $H_0$ si $p < \alpha = 0.05$ después de aplicar la corrección de
+Bonferroni para comparaciones múltiples.
+
+Con 6 comparaciones planeadas (sección 8.1), el umbral ajustado es:
+\[\alpha_{\text{ajustado}} = \frac{0.05}{6} \approx 0.0083\]
+
+\subsection{Intervalos de Confianza}
+
+Se reportarán intervalos de confianza al 95\% para:
+\begin{itemize}
+  \item Diferencia de proporciones en tasa de compilación y corrección.
+  \item Mediana del speedup por método.
+  \item Mediana de intentos hasta éxito por método.
+\end{itemize}
+
+\subsection{Corrección por Comparaciones Múltiples}
+
+Se aplicará corrección de Bonferroni dado que se realizan 6 comparaciones planeadas.
+Si se detectaran comparaciones no planeadas post-hoc, se documentarán explícitamente
+y se considerarán exploratorias.
+
+% -----------------------------------------------------------------------------
+\section{Reproducibilidad Experimental}
+
+\subsection{Hardware}
+
+\begin{table}[H]
+\centering
+\caption{Entorno de hardware}
+\begin{tabular}{ll}
+\toprule
+\textbf{Componente} & \textbf{Especificación} \\
+\midrule
+GPU & NVIDIA T4 (Google Colab) \\
+VRAM & 15 GB \\
+CPU & Intel Xeon (Colab) \\
+RAM & 12.7 GB \\
+Sistema Operativo & Ubuntu 22.04 (Colab runtime) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Entorno de Software}
+
+\begin{table}[H]
+\centering
+\caption{Versiones de software}
+\begin{tabular}{ll}
+\toprule
+\textbf{Librería} & \textbf{Versión} \\
+\midrule
+Python & 3.11.x \\
+PyTorch & 2.x \\
+Triton & 3.x \\
+fireworks-ai & $\geq$ 0.15.0 \\
+python-dotenv & latest \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textit{Nota: Las versiones exactas se reportarán en la Parte II después de la ejecución.}
+
+\subsection{Modelos Utilizados}
+
+\begin{table}[H]
+\centering
+\caption{Modelos evaluados}
+\begin{tabular}{lllll}
+\toprule
+\textbf{Rol} & \textbf{Modelo} & \textbf{Versión/ID} & \textbf{Proveedor} & \textbf{Parámetros} \\
+\midrule
+Método propuesto & Llama 3.1 & \texttt{llama-v3p1-8b-instruct} & Fireworks AI & 8B \\
+Baseline 1 & Claude Opus 4.7 & \texttt{claude-opus-4-7} & Anthropic & $\sim$200B+ \\
+Baseline 2 & GPT-4o & \texttt{gpt-4o} & OpenAI & $\sim$200B+ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Configuración del Método Propuesto}
+
+\begin{itemize}
+  \item \textbf{Temperatura:} 0.0
+  \item \textbf{Gramática GBNF:} Activa — fuerza imports + \texttt{@triton.jit} a nivel de token.
+  \item \textbf{Max tokens:} 4096
+  \item \textbf{Intentos máximos:} 3
+  \item \textbf{Prompt de sistema:} Fijo (mismo para todas las operaciones).
+\end{itemize}
+
+\subsection{Repositorio}
+
+\begin{itemize}
+  \item \textbf{GitHub:} \url{https://github.com/casrhub/llm-gpu-kernel-generation}
+  \item \textbf{Commit de referencia:} \texttt{ae1777a} (o el más reciente al momento
+    de ejecutar experimentos)
+  \item \textbf{Archivo de configuración:} \texttt{experiment\_config.json}
+    (por crear antes de ejecutar)
+\end{itemize}
+
+% -----------------------------------------------------------------------------
+\section{Amenazas a la Validez (Pre-registro)}
+
+\subsection{Validez Interna}
+
+\begin{itemize}
+  \item \textbf{Diferencias de hardware entre corridas:} Colab asigna GPU dinámicamente.
+    Se mitigará ejecutando todos los métodos en la misma sesión de Colab cuando sea
+    posible, o documentando el tipo de GPU en cada corrida.
+
+  \item \textbf{No-determinismo residual:} Aunque $T=0.0$, algunos modelos pueden
+    presentar variabilidad por precisión de punto flotante en inference distribuida.
+    Se mitigará ejecutando cada operación 3 veces y reportando la moda.
+
+  \item \textbf{Selección del benchmark:} Si el benchmark favorece operaciones simples
+    donde la gramática ayuda más, el método propuesto podría estar sobreestimado.
+\end{itemize}
+
+\subsection{Validez Externa}
+
+\begin{itemize}
+  \item \textbf{Generalización limitada:} El benchmark incluye 30 operaciones.
+    Las conclusiones pueden no generalizarse a operaciones más complejas
+    (transformers completos, operaciones matriciales avanzadas).
+
+  \item \textbf{Hardware específico:} Los resultados de speedup son específicos a
+    NVIDIA T4. En otras GPUs (A100, H100) la relación podría cambiar.
+\end{itemize}
+
+\subsection{Validez de Constructo}
+
+\begin{itemize}
+  \item \textbf{Tasa de compilación como proxy de calidad:} Un kernel puede compilar
+    pero ser numéricamente incorrecto o ineficiente. La compilación no implica
+    utilidad real.
+
+  \item \textbf{Diferencia de escala entre modelos:} Los baselines tienen órdenes de
+    magnitud más parámetros. El speedup en tasa de compilación puede explicarse
+    únicamente por la restricción estructural (gramática), no por la calidad del SLM.
+\end{itemize}
+
+% =============================================================================
+% PARTE II — RESULTADOS Y ANÁLISIS
+% =============================================================================
+\newpage
+\part{Resultados y Análisis}
+\textit{Esta sección se completará después de ejecutar los experimentos comparativos.}
+
+% -----------------------------------------------------------------------------
+\section{Resultados Descriptivos}
+
+% TODO: Completar con datos reales después de ejecutar experimentos
+
+\begin{table}[H]
+\centering
+\caption{Resumen de resultados por método}
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Método} & \textbf{N} & \textbf{CR (\%)} & \textbf{NR (\%)} &
+  $\bar{A}$ & $\sigma_A$ & \textbf{Speedup $\bar{S}$} \\
+\midrule
+SLM + GBNF + reparación & 30 & -- & -- & -- & -- & -- \\
+Claude Opus 4.7 & 30 & -- & -- & -- & -- & -- \\
+GPT-4o & 30 & -- & -- & -- & -- & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textit{CR = tasa de compilación, NR = tasa de corrección numérica, $\bar{A}$ =
+media de intentos, $\sigma_A$ = desviación estándar de intentos.}
+
+% -----------------------------------------------------------------------------
+\section{Visualización de Datos}
+
+% TODO: Insertar figuras después de ejecutar experimentos
+
+\begin{figure}[H]
+\centering
+% \includegraphics[width=0.7\textwidth]{figures/compilation_rate_bar.pdf}
+\framebox[0.7\textwidth]{\rule{0pt}{4cm} [Gráfica de barras — Tasa de compilación por método]}
+\caption{Tasa de compilación por método. Barras de error representan
+  intervalos de confianza al 95\%.}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+% \includegraphics[width=0.7\textwidth]{figures/speedup_boxplot.pdf}
+\framebox[0.7\textwidth]{\rule{0pt}{4cm} [Box plot — Speedup por método]}
+\caption{Distribución de speedup por método. Solo se incluyen kernels que
+  pasaron la validación de corrección numérica. La línea punteada en $S=1$
+  indica paridad con PyTorch.}
+\end{figure}
+
+% -----------------------------------------------------------------------------
+\section{Inferencia Estadística}
+
+% TODO: Completar con p-values y estadísticos reales
+
+\begin{table}[H]
+\centering
+\caption{Resultados de pruebas estadísticas}
+\begin{tabular}{lllllll}
+\toprule
+\textbf{Comparación} & \textbf{Métrica} & \textbf{Prueba} &
+  \textbf{Estadístico} & \textbf{p-value} & \textbf{p ajustado} & \textbf{d Cohen} \\
+\midrule
+Propuesto vs.\ Claude & CR & McNemar & -- & -- & -- & -- \\
+Propuesto vs.\ GPT-4o & CR & McNemar & -- & -- & -- & -- \\
+Propuesto vs.\ Claude & NR & McNemar & -- & -- & -- & -- \\
+Propuesto vs.\ GPT-4o & NR & McNemar & -- & -- & -- & -- \\
+Propuesto vs.\ Claude & Intentos & Wilcoxon & -- & -- & -- & -- \\
+Propuesto vs.\ GPT-4o & Intentos & Wilcoxon & -- & -- & -- & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection*{Interpretación (plantilla)}
+
+\begin{itemize}
+  \item \textbf{¿Se rechazó $H_0$?} [Completar]
+  \item \textbf{Evidencia estadística:} [Completar con p-values]
+  \item \textbf{Tamaño del efecto:} [Pequeño / Mediano / Grande según d de Cohen]
+  \item \textbf{Consistencia entre operaciones:} [Completar]
+\end{itemize}
+
+% -----------------------------------------------------------------------------
+\section{Comparación Crítica}
+
+% TODO: Completar con análisis real
+
+\textit{[Discutir si los resultados fueron consistentes entre las tres categorías del
+benchmark (elementwise, reducción, compuesta). Analizar si el método propuesto tuvo
+ventaja particular en alguna categoría. Considerar si las diferencias observadas pueden
+explicarse parcialmente por la diferencia de escala entre modelos.]}
+
+% -----------------------------------------------------------------------------
+\section{Amenazas Observadas a la Validez}
+
+\begin{table}[H]
+\centering
+\caption{Amenazas detectadas durante la ejecución}
+\begin{tabular}{p{3cm}p{5cm}lp{4cm}}
+\toprule
+\textbf{Amenaza} & \textbf{Descripción} & \textbf{Clasificación} & \textbf{Mitigación aplicada} \\
+\midrule
+Asignación dinámica de GPU en Colab &
+  Distintas sesiones pueden recibir diferentes modelos de GPU, afectando speedup. &
+  Interna &
+  Documentar tipo de GPU por sesión. \\
+Validador con bugs &
+  Errores en el pipeline de validación (exec() vs.\ temp file) generaron falsos negativos
+  durante el desarrollo, afectando la interpretación inicial. &
+  Interna &
+  Correcciones aplicadas y versionadas en git. \\
+Benchmark pequeño &
+  30 operaciones pueden ser insuficientes para detectar diferencias en operaciones
+  complejas (compuesta). &
+  Externa &
+  Análisis separado por categoría. \\
+\midrule
+\multicolumn{4}{c}{\textit{[Agregar amenazas adicionales detectadas durante experimentos]}} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% -----------------------------------------------------------------------------
+\section{Discusión}
+
+% TODO: Completar después de ejecutar experimentos
+
+\textit{[Guía: discutir si la gramática GBNF realmente aportó valor o si los baselines
+también habrían compilado al primer intento. Analizar si el ciclo de auto-reparación
+fue necesario. Evaluar si la diferencia de resultados entre el SLM y los modelos frontier
+se explica por el tamaño del modelo o por la infraestructura especializada. Discutir
+qué limitaciones quedaron abiertas.]}
+
+% -----------------------------------------------------------------------------
+\section{Conclusión}
+
+% TODO: Completar después de ejecutar experimentos
+
+\textit{[Guía: responder explícitamente cada pregunta de la rúbrica: ¿se rechazó $H_0$?
+¿Hubo evidencia estadística suficiente? ¿La diferencia fue consistente? ¿El tamaño del
+efecto fue relevante? ¿La mejora justificaría usar el método en producción? ¿Qué
+limitaciones identificaron? ¿Podría otro equipo reproducir el experimento?]}
+
+% =============================================================================
+\end{document}
