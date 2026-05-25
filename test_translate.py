@@ -1,59 +1,41 @@
 """
-Quick test for the pytorch_to_triton translator.
+Test the Fireworks-based pytorch_to_triton translator.
 
-Stage 1: syntax validation (no GPU needed)
-Stage 2: correctness check (requires CUDA GPU)
+Runs generate_kernel() on a simple elementwise operation and prints
+the per-attempt validation results.
 """
 import torch
 from dotenv import load_dotenv
 
 load_dotenv()
 
-from src.translator.pytorch_to_triton import translate, validate
+from src.translator.pytorch_to_triton import generate_kernel
 
-# --- 1. Generate the kernel ---
-pytorch_op = "out = x * y + z"
+pytorch_op  = "out = x * y + z"
 input_shapes = {"x": [1024], "y": [1024], "z": [1024]}
 
-print("Translating:", pytorch_op)
-print("Input shapes:", input_shapes)
-print()
+print(f"Translating: {pytorch_op}")
+print(f"Input shapes: {input_shapes}")
 
-kernel_code = translate(pytorch_op, input_shapes=input_shapes, verbose=True)
+result = generate_kernel(
+    pytorch_code=pytorch_op,
+    input_shapes=input_shapes,
+    # Supply pytorch_fn + test_inputs if you have a CUDA GPU:
+    # pytorch_fn=lambda x, y, z: x * y + z,
+    # test_inputs=[torch.randn(1024), torch.randn(1024), torch.randn(1024)],
+    generation_model="accounts/fireworks/models/kimi-k2p5",
+    repair_model="accounts/fireworks/models/gpt-oss-120b",
+    max_attempts=3,
+    verbose=True,
+)
 
-print("=== Generated Kernel ===")
-print(kernel_code)
-print()
+print("\n=== Result ===")
+print(f"Success:  {result['success']}")
+print(f"Attempts: {result['attempts']}")
+print(f"\n=== Generated Kernel ===")
+print(result["code"])
 
-# --- 2. Syntax validation (no GPU needed) ---
-result = validate(kernel_code)
-print("=== Validation ===")
-print(f"  Syntax valid : {result['syntax_valid']}")
-print(f"  Imports ok   : {result['imports_ok']}")
-print(f"  Correctness  : {result['correctness']}  (None = not checked)")
-if result["errors"]:
-    print(f"  Errors       : {result['errors']}")
-print()
-
-# --- 3. Correctness check (only runs if CUDA is available) ---
-if torch.cuda.is_available():
-    print("CUDA available — running correctness check...")
-
-    x = torch.randn(1024)
-    y = torch.randn(1024)
-    z = torch.randn(1024)
-
-    def pytorch_baseline(x, y, z):
-        return x * y + z
-
-    result = validate(
-        kernel_code,
-        pytorch_fn=pytorch_baseline,
-        test_inputs=[x, y, z],
-    )
-    print(f"  Correctness  : {result['correctness']}")
-    if result["errors"]:
-        print(f"  Errors       : {result['errors']}")
-else:
-    print("No CUDA GPU detected — skipping correctness check.")
-    print("(Triton kernels require an NVIDIA GPU to run)")
+if result["history"]:
+    print("\n=== Attempt History ===")
+    for entry in result["history"]:
+        print(f"  Attempt {entry['attempt']} failed [{entry['layer']}]: {entry['errors']}")
