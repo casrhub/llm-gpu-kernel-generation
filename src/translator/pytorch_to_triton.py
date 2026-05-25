@@ -620,13 +620,18 @@ def generate_kernel(
 # Internal helpers
 # ---------------------------------------------------------------------------
 def _find_launcher(namespace: dict):
-    """Return the first non-kernel, non-private callable in an exec'd namespace."""
+    """Return the launcher function (plain Python def) from an imported kernel module.
+
+    Uses inspect.isfunction() instead of an attribute check — Triton's JITFunction
+    is a callable *object*, not a plain function, so isfunction() reliably excludes
+    it regardless of which Triton version is installed.
+    """
+    import inspect
     return next(
         (
             v for k, v in namespace.items()
-            if callable(v)
+            if inspect.isfunction(v)
             and not k.startswith("_")
-            and not hasattr(v, "__triton_kernel__")
             and k not in ("torch", "triton", "tl")
             and k[0].islower()
         ),
