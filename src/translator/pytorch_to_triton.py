@@ -445,6 +445,7 @@ def generate_kernel(
     api_key: Optional[str] = None,
     generation_model: str = "accounts/fireworks/models/kimi-k2p5",
     repair_model: str = "accounts/fireworks/models/kimi-k2p5",
+    output_path: Optional[str] = None,
     verbose: bool = False,
 ) -> dict:
     """
@@ -470,15 +471,18 @@ def generate_kernel(
         max_attempts:       Maximum repair attempts after initial generation (default 3)
         api_key:            Fireworks API key
         generation_model:   Frontier model for initial generation
-        repair_model:       Cheaper model for targeted repair on failure
+        repair_model:       Model for targeted repair on failure
+        output_path:        If provided, write the validated kernel to this .py file on success
+                            e.g. "fma.py" → then use: from fma import fused_multiply_add
         verbose:            Print attempt details
 
     Returns:
         dict with keys:
-            success   (bool)         — all validation layers passed
-            code      (str)          — best generated code (last attempt)
-            attempts  (int)          — how many LLM calls were made
-            history   (list[dict])   — per-attempt error details
+            success      (bool)         — all validation layers passed
+            code         (str)          — best generated code (last attempt)
+            attempts     (int)          — how many LLM calls were made
+            history      (list[dict])   — per-attempt error details
+            output_path  (str | None)   — path the kernel was written to, if output_path was set
     """
     import torch
 
@@ -583,14 +587,21 @@ def generate_kernel(
             print("[Correctness] ⏭  SKIPPED (no pytorch_fn / test_inputs / CUDA)")
 
         # ── All layers passed ─────────────────────────────────────────────
+        if output_path is not None:
+            with open(output_path, "w") as f:
+                f.write(code)
+            if verbose:
+                print(f"\n💾 Kernel saved to {output_path}")
+
         if verbose:
             print(f"\n✅ Kernel generated successfully in {attempt} attempt(s)")
 
         return {
-            "success":  True,
-            "code":     code,
-            "attempts": attempt,
-            "history":  history,
+            "success":     True,
+            "code":        code,
+            "attempts":    attempt,
+            "history":     history,
+            "output_path": output_path,
         }
 
     # Exhausted all attempts

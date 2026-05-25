@@ -24,6 +24,7 @@ result = generate_kernel(
     test_inputs=[torch.randn(1024), torch.randn(1024), torch.randn(1024)],
     generation_model="accounts/fireworks/models/kimi-k2p5",
     repair_model="accounts/fireworks/models/kimi-k2p5",
+    output_path="fma.py",
     max_attempts=3,
     verbose=True,
 )
@@ -31,6 +32,8 @@ result = generate_kernel(
 print("\n=== Result ===")
 print(f"Success:  {result['success']}")
 print(f"Attempts: {result['attempts']}")
+if result.get("output_path"):
+    print(f"Saved to: {result['output_path']}")
 print(f"\n=== Generated Kernel ===")
 print(result["code"])
 
