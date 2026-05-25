@@ -24,7 +24,7 @@ result = generate_kernel(
     # pytorch_fn=lambda x, y, z: x * y + z,
     # test_inputs=[torch.randn(1024), torch.randn(1024), torch.randn(1024)],
     generation_model="accounts/fireworks/models/kimi-k2p5",
-    repair_model="accounts/fireworks/models/gpt-oss-120b",
+    repair_model="accounts/fireworks/models/kimi-k2p5",
     max_attempts=3,
     verbose=True,
 )

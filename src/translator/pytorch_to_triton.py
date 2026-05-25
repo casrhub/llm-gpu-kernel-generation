@@ -428,7 +428,7 @@ def generate_kernel(
     max_attempts: int = 3,
     api_key: Optional[str] = None,
     generation_model: str = "accounts/fireworks/models/kimi-k2p5",
-    repair_model: str = "accounts/fireworks/models/gpt-oss-120b",
+    repair_model: str = "accounts/fireworks/models/kimi-k2p5",
     verbose: bool = False,
 ) -> dict:
     """
@@ -436,7 +436,7 @@ def generate_kernel(
 
     Uses two models with different roles:
         generation_model — frontier model for the first attempt (hard task: design from scratch)
-        repair_model     — cheaper model for subsequent repairs (easy task: fix a known error)
+        repair_model     — model for subsequent repairs (easy task: fix a known error in existing code)
 
     Each failed attempt feeds the exact error + broken code back to the repair model,
     so it knows precisely what to fix rather than starting from a blank page.
