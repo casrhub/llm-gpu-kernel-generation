@@ -179,6 +179,11 @@ def translate(
 
     raw = response.choices[0].message.content
 
+    # Some models (e.g. gpt-oss) leak internal chain-of-thought tokens
+    # like <|end|><|start|>assistant... into the response. Truncate there.
+    if "<|" in raw:
+        raw = raw[:raw.index("<|")]
+
     if verbose:
         print("RAW RESPONSE:")
         print(raw)
@@ -316,20 +321,39 @@ def validate_static(kernel_code: str) -> dict:
 # ---------------------------------------------------------------------------
 def validate_gpu(kernel_code: str) -> dict:
     """
-    Execute the kernel module — checks that imports resolve and the
-    @triton.jit kernel can be defined without a compile-time error.
+    Compile and define the kernel module by writing to a temp .py file.
+
+    Triton's @jit decorator reads the function's source file at compile time —
+    it cannot compile a function defined via exec() in memory. Writing to a
+    real .py file and importing it via importlib resolves this.
 
     Returns:
         dict with keys: valid (bool), errors (list)
     """
+    import tempfile
+    import importlib.util
+    import os
+
     results = {"valid": False, "errors": []}
+
+    # Write kernel to a real .py file so @triton.jit can read source
+    tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".py", delete=False)
     try:
-        exec(kernel_code, {})
+        tmp.write(kernel_code)
+        tmp.close()
+
+        spec   = importlib.util.spec_from_file_location("_triton_kernel", tmp.name)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
         results["valid"] = True
+
     except ImportError as e:
         results["errors"].append(f"Import error: {e}")
     except Exception as e:
         results["errors"].append(f"Runtime error during kernel definition: {e}")
+    finally:
+        os.unlink(tmp.name)
+
     return results
 
 
