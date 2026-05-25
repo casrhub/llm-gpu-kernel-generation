@@ -20,9 +20,8 @@ print(f"Input shapes: {input_shapes}")
 result = generate_kernel(
     pytorch_code=pytorch_op,
     input_shapes=input_shapes,
-    # Supply pytorch_fn + test_inputs if you have a CUDA GPU:
-    # pytorch_fn=lambda x, y, z: x * y + z,
-    # test_inputs=[torch.randn(1024), torch.randn(1024), torch.randn(1024)],
+    pytorch_fn=lambda x, y, z: x * y + z,
+    test_inputs=[torch.randn(1024), torch.randn(1024), torch.randn(1024)],
     generation_model="accounts/fireworks/models/kimi-k2p5",
     repair_model="accounts/fireworks/models/kimi-k2p5",
     max_attempts=3,
