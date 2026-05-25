@@ -88,11 +88,11 @@ restricciones estructurales.
 
   \item \textbf{¿Qué métodos se comparan?}
     \begin{itemize}
-      \item \textbf{Método propuesto:} SLM (Llama-3.1-8B-Instruct via Fireworks AI) con
+      \item \textbf{Método propuesto:} SLM (GPT-OSS 20B via Fireworks AI) con
         pipeline especializado: gramática GBNF + validación en tres capas + auto-reparación.
-      \item \textbf{Baseline 1:} Claude Opus 4.7 (Anthropic) — prompting directo, sin
+      \item \textbf{Baseline 1:} DeepSeek V4 Pro (Fireworks AI) — prompting directo, sin
         restricciones estructurales.
-      \item \textbf{Baseline 2:} GPT-4o (OpenAI) — prompting directo, sin restricciones
+      \item \textbf{Baseline 2:} Kimi K2 (Fireworks AI) — prompting directo, sin restricciones
         estructurales.
     \end{itemize}
 
@@ -113,24 +113,24 @@ corrección numérica.
 
 \begin{itemize}
   \item $H_0^{(1)}$: No existe diferencia significativa en la tasa de compilación
-    entre el método propuesto y Claude Opus 4.7.
-    \[H_0^{(1)}: p_{\text{propuesto}} = p_{\text{Claude}}\]
+    entre el método propuesto y DeepSeek V4 Pro.
+    \[H_0^{(1)}: p_{\text{propuesto}} = p_{\text{DeepSeek}}\]
 
   \item $H_1^{(1)}$: El método propuesto obtiene una tasa de compilación
-    significativamente mayor o igual a la de Claude Opus 4.7.
-    \[H_1^{(1)}: p_{\text{propuesto}} \geq p_{\text{Claude}}\]
+    significativamente mayor o igual a la de DeepSeek V4 Pro.
+    \[H_1^{(1)}: p_{\text{propuesto}} \geq p_{\text{DeepSeek}}\]
 \end{itemize}
 
 \subsection{Hipótesis H2 — Tasa de Corrección Numérica}
 
 \begin{itemize}
   \item $H_0^{(2)}$: No existe diferencia significativa en la tasa de corrección
-    numérica entre el método propuesto y GPT-4o.
-    \[H_0^{(2)}: p_{\text{propuesto}} = p_{\text{GPT-4o}}\]
+    numérica entre el método propuesto y Kimi K2.
+    \[H_0^{(2)}: p_{\text{propuesto}} = p_{\text{Kimi}}\]
 
   \item $H_1^{(2)}$: El método propuesto obtiene una tasa de corrección numérica
-    significativamente mayor o igual a la de GPT-4o.
-    \[H_1^{(2)}: p_{\text{propuesto}} \geq p_{\text{GPT-4o}}\]
+    significativamente mayor o igual a la de Kimi K2.
+    \[H_1^{(2)}: p_{\text{propuesto}} \geq p_{\text{Kimi}}\]
 \end{itemize}
 
 \subsection{Hipótesis H3 — Intentos hasta Éxito}
@@ -156,9 +156,9 @@ Las variables independientes definen cómo está configurado cada método de gen
 \caption{Variables independientes por método}
 \begin{tabular}{llll}
 \toprule
-\textbf{Variable} & \textbf{Método Propuesto} & \textbf{Baseline 1 (Claude)} & \textbf{Baseline 2 (GPT-4o)} \\
+\textbf{Variable} & \textbf{Método Propuesto} & \textbf{Baseline 1 (DeepSeek)} & \textbf{Baseline 2 (Kimi K2)} \\
 \midrule
-Modelo base & Llama-3.1-8B & claude-opus-4-7 & gpt-4o \\
+Modelo base & gpt-oss-20b & deepseek-v4-pro & kimi-k2p5 \\
 Parámetros (aprox.) & 8B & $\sim$200B+ & $\sim$200B+ \\
 Proveedor & Fireworks AI & Anthropic & OpenAI \\
 Temperatura & 0.0 & 0.0 & 0.0 \\
@@ -214,7 +214,7 @@ directas por par de operación, reduciendo la variabilidad introducida por difer
 en dificultad entre operaciones.
 
 \begin{itemize}
-  \item \textbf{Número de grupos:} 3 (método propuesto, Claude Opus 4.7, GPT-4o).
+  \item \textbf{Número de grupos:} 3 (método propuesto, DeepSeek V4 Pro, Kimi K2).
   \item \textbf{Número de operaciones por grupo:} 30.
   \item \textbf{Total de llamadas LLM:} $\geq 90$ (más intentos de reparación).
 \end{itemize}
@@ -323,12 +323,11 @@ Por lo tanto, $N = 30$ operaciones por método es suficiente dado el efecto espe
 \subsection{Comparaciones Planeadas}
 
 \begin{enumerate}
-  \item Método propuesto vs.\ Claude Opus 4.7 en tasa de compilación.
-  \item Método propuesto vs.\ GPT-4o en tasa de compilación.
-  \item Método propuesto vs.\ Claude Opus 4.7 en tasa de corrección numérica.
-  \item Método propuesto vs.\ GPT-4o en tasa de corrección numérica.
+  \item Método propuesto vs.\ DeepSeek V4 Pro en tasa de compilación.
+  \item Método propuesto vs.\ Kimi K2 en tasa de compilación.
+  \item Método propuesto vs.\ DeepSeek V4 Pro en tasa de corrección numérica.
+  \item Método propuesto vs.\ Kimi K2 en tasa de corrección numérica.
   \item Método propuesto vs.\ ambos baselines en número de intentos hasta éxito.
-  \item Método propuesto vs.\ ambos baselines en speedup (sólo kernels correctos).
 \end{enumerate}
 
 \subsection{Pruebas Estadísticas}
