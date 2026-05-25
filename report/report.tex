@@ -423,9 +423,9 @@ python-dotenv & latest \\
 \toprule
 \textbf{Rol} & \textbf{Modelo} & \textbf{Versión/ID} & \textbf{Proveedor} & \textbf{Parámetros} \\
 \midrule
-Método propuesto & Llama 3.1 & \texttt{llama-v3p1-8b-instruct} & Fireworks AI & 8B \\
-Baseline 1 & Claude Opus 4.7 & \texttt{claude-opus-4-7} & Anthropic & $\sim$200B+ \\
-Baseline 2 & GPT-4o & \texttt{gpt-4o} & OpenAI & $\sim$200B+ \\
+Método propuesto & GPT-OSS 20B & \texttt{gpt-oss-20b} & Fireworks AI & 20B \\
+Baseline 1 & DeepSeek V4 Pro & \texttt{deepseek-v4-pro} & Fireworks AI & $\sim$670B \\
+Baseline 2 & Kimi K2 & \texttt{kimi-k2p5} & Fireworks AI & $\sim$1T (MoE) \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -444,10 +444,9 @@ Baseline 2 & GPT-4o & \texttt{gpt-4o} & OpenAI & $\sim$200B+ \\
 
 \begin{itemize}
   \item \textbf{GitHub:} \url{https://github.com/casrhub/llm-gpu-kernel-generation}
-  \item \textbf{Commit de referencia:} \texttt{ae1777a} (o el más reciente al momento
-    de ejecutar experimentos)
-  \item \textbf{Archivo de configuración:} \texttt{experiment\_config.json}
-    (por crear antes de ejecutar)
+  \item \textbf{Commit de referencia:} \texttt{841054e}
+  \item \textbf{Resultados:} \texttt{results\_method.json}, \texttt{results\_baseline\_deepseek-v4-pro.json},
+    \texttt{results\_baseline\_kimi-k2p5.json}
 \end{itemize}
 
 % -----------------------------------------------------------------------------
@@ -496,94 +495,171 @@ Baseline 2 & GPT-4o & \texttt{gpt-4o} & OpenAI & $\sim$200B+ \\
 % =============================================================================
 \newpage
 \part{Resultados y Análisis}
-\textit{Esta sección se completará después de ejecutar los experimentos comparativos.}
+
+\textbf{Nota metodológica:} Los experimentos se ejecutaron con $N=10$ operaciones
+en lugar de $N=30$ planificadas en el pre-registro, por restricciones de tiempo y
+costo de API. Esta reducción afecta el poder estadístico e impide rechazar $H_0$ en
+las pruebas de McNemar (ver Sección~\ref{sec:inferencia}). Las conclusiones se
+interpretan con esta limitación explícita.
+
+\textbf{Cambio respecto al pre-registro:} Los baselines originalmente planificados
+(Claude Opus 4.7, GPT-4o) fueron reemplazados por DeepSeek V4 Pro y Kimi K2 via
+Fireworks AI, ya que todos los modelos se ejecutaron desde la misma plataforma para
+garantizar condiciones de inferencia homogéneas.
 
 % -----------------------------------------------------------------------------
 \section{Resultados Descriptivos}
 
-% TODO: Completar con datos reales después de ejecutar experimentos
-
 \begin{table}[H]
 \centering
-\caption{Resumen de resultados por método}
-\begin{tabular}{lcccccc}
+\caption{Resumen de resultados por método ($N=10$ operaciones)}
+\begin{tabular}{lccccc}
 \toprule
 \textbf{Método} & \textbf{N} & \textbf{CR (\%)} & \textbf{NR (\%)} &
-  $\bar{A}$ & $\sigma_A$ & \textbf{Speedup $\bar{S}$} \\
+  $\bar{A}$ & $\sigma_A$ \\
 \midrule
-SLM + GBNF + reparación & 30 & -- & -- & -- & -- & -- \\
-Claude Opus 4.7 & 30 & -- & -- & -- & -- & -- \\
-GPT-4o & 30 & -- & -- & -- & -- & -- \\
+SLM + GBNF + reparación (gpt-oss-20b) & 10 & 80.0 & 70.0 & 2.30 & 0.46 \\
+Baseline 1 — DeepSeek V4 Pro          & 10 & 90.0 & 80.0 & 1.00 & 0.00 \\
+Baseline 2 — Kimi K2                  & 10 & 70.0 & 70.0 & 1.00 & 0.00 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\textit{CR = tasa de compilación, NR = tasa de corrección numérica, $\bar{A}$ =
-media de intentos, $\sigma_A$ = desviación estándar de intentos.}
+\textit{CR = tasa de compilación, NR = tasa de corrección numérica,
+$\bar{A}$ = media de intentos LLM, $\sigma_A$ = desviación estándar de intentos.}
+
+\vspace{1em}
+
+La Tabla~2 muestra los resultados por operación para los tres métodos.
+
+\begin{table}[H]
+\centering
+\caption{Resultados por operación — ✓ correcto, ✗ incorrecto}
+\begin{tabular}{llccc}
+\toprule
+\textbf{ID} & \textbf{Operación} & \textbf{SLM+GBNF} & \textbf{DeepSeek} & \textbf{Kimi K2} \\
+            &                    & \textbf{(att.)}   & \textbf{(att.)}   & \textbf{(att.)} \\
+\midrule
+ew\_01\_add        & \texttt{out = x + y}                              & \checkmark (2) & \checkmark (1) & \checkmark (1) \\
+ew\_02\_fma        & \texttt{out = x * y + z}                          & \checkmark (2) & \checkmark (1) & \checkmark (1) \\
+ew\_03\_mul        & \texttt{out = x * y}                              & \checkmark (2) & \checkmark (1) & \checkmark (1) \\
+ew\_04\_relu       & \texttt{out = relu(x)}                            & $\times$ (3)  & \checkmark (1) & \checkmark (1) \\
+ew\_05\_silu       & \texttt{out = x * sigmoid(x)}                     & \checkmark (2) & \checkmark (1) & \checkmark (1) \\
+\midrule
+rd\_01\_sum        & \texttt{out = x.sum()}                            & $\times$ (3)  & $\times$ (1)  & $\times$ (1)  \\
+rd\_02\_max        & \texttt{out = x.max()}                            & \checkmark (2) & \checkmark (1) & $\times$ (1)  \\
+rd\_03\_l2         & \texttt{out = (x*x).sum()}                        & \checkmark (2) & $\times$ (1)  & \checkmark (1) \\
+\midrule
+cp\_01\_softmax    & \texttt{out = softmax(x)}                         & \checkmark (2) & \checkmark (1) & $\times$ (1)  \\
+cp\_02\_layernorm  & \texttt{out = layernorm(x)}                       & $\times$ (3)  & \checkmark (1) & \checkmark (1) \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 % -----------------------------------------------------------------------------
 \section{Visualización de Datos}
 
-% TODO: Insertar figuras después de ejecutar experimentos
-
-\begin{figure}[H]
-\centering
-% \includegraphics[width=0.7\textwidth]{figures/compilation_rate_bar.pdf}
-\framebox[0.7\textwidth]{\rule{0pt}{4cm} [Gráfica de barras — Tasa de compilación por método]}
-\caption{Tasa de compilación por método. Barras de error representan
-  intervalos de confianza al 95\%.}
-\end{figure}
-
-\begin{figure}[H]
-\centering
-% \includegraphics[width=0.7\textwidth]{figures/speedup_boxplot.pdf}
-\framebox[0.7\textwidth]{\rule{0pt}{4cm} [Box plot — Speedup por método]}
-\caption{Distribución de speedup por método. Solo se incluyen kernels que
-  pasaron la validación de corrección numérica. La línea punteada en $S=1$
-  indica paridad con PyTorch.}
-\end{figure}
-
-% -----------------------------------------------------------------------------
-\section{Inferencia Estadística}
-
-% TODO: Completar con p-values y estadísticos reales
-
 \begin{table}[H]
 \centering
-\caption{Resultados de pruebas estadísticas}
-\begin{tabular}{lllllll}
+\caption{Tasa de corrección numérica por categoría (\%)}
+\begin{tabular}{lccc}
 \toprule
-\textbf{Comparación} & \textbf{Métrica} & \textbf{Prueba} &
-  \textbf{Estadístico} & \textbf{p-value} & \textbf{p ajustado} & \textbf{d Cohen} \\
+\textbf{Categoría} & \textbf{SLM+GBNF+rep.} & \textbf{DeepSeek V4 Pro} & \textbf{Kimi K2} \\
 \midrule
-Propuesto vs.\ Claude & CR & McNemar & -- & -- & -- & -- \\
-Propuesto vs.\ GPT-4o & CR & McNemar & -- & -- & -- & -- \\
-Propuesto vs.\ Claude & NR & McNemar & -- & -- & -- & -- \\
-Propuesto vs.\ GPT-4o & NR & McNemar & -- & -- & -- & -- \\
-Propuesto vs.\ Claude & Intentos & Wilcoxon & -- & -- & -- & -- \\
-Propuesto vs.\ GPT-4o & Intentos & Wilcoxon & -- & -- & -- & -- \\
+Elementwise (5 ops) & 80.0\% (4/5) & \textbf{100.0\%} (5/5) & \textbf{100.0\%} (5/5) \\
+Reducción   (3 ops) & \textbf{66.7\%} (2/3) & 33.3\% (1/3) & 33.3\% (1/3) \\
+Compuesta   (2 ops) & 50.0\% (1/2) & \textbf{100.0\%} (2/2) & 50.0\% (1/2) \\
+\midrule
+\textbf{Total (10 ops)} & 70.0\% (7/10) & \textbf{80.0\%} (8/10) & 70.0\% (7/10) \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\subsection*{Interpretación (plantilla)}
+La categoría de \textbf{reducción} es el punto de diferenciación más relevante:
+el SLM con auto-reparación alcanza 66.7\%, superando a ambos modelos frontier
+(33.3\% cada uno). En cambio, en operaciones elementwise y compuestas los modelos
+frontier dominan por su mayor capacidad de razonamiento sin necesidad de intentos
+adicionales.
+
+% -----------------------------------------------------------------------------
+\section{Inferencia Estadística}
+\label{sec:inferencia}
+
+Se aplicaron las pruebas definidas en el pre-registro con corrección de Bonferroni
+para 4 comparaciones planeadas ($\alpha_{\text{adj}} = 0.05/4 = 0.0125$).
+
+\begin{table}[H]
+\centering
+\caption{Resultados de pruebas estadísticas}
+\begin{tabular}{llllll}
+\toprule
+\textbf{Comparación} & \textbf{Métrica} & \textbf{Prueba} &
+  \textbf{p-value} & \textbf{p adj.} & \textbf{Sig.} \\
+\midrule
+SLM vs.\ DeepSeek & Compilación & McNemar & 1.0000 & 1.0000 & No \\
+SLM vs.\ DeepSeek & Corrección  & McNemar & 1.0000 & 1.0000 & No \\
+SLM vs.\ DeepSeek & Intentos    & Wilcoxon & 0.0020 & 0.0020 & \textbf{Sí} \\
+\midrule
+SLM vs.\ Kimi K2  & Compilación & McNemar & 1.0000 & 1.0000 & No \\
+SLM vs.\ Kimi K2  & Corrección  & McNemar & 1.0000 & 1.0000 & No \\
+SLM vs.\ Kimi K2  & Intentos    & Wilcoxon & 0.0020 & 0.0020 & \textbf{Sí} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection*{Interpretación}
 
 \begin{itemize}
-  \item \textbf{¿Se rechazó $H_0$?} [Completar]
-  \item \textbf{Evidencia estadística:} [Completar con p-values]
-  \item \textbf{Tamaño del efecto:} [Pequeño / Mediano / Grande según d de Cohen]
-  \item \textbf{Consistencia entre operaciones:} [Completar]
+  \item \textbf{¿Se rechazó $H_0$ para compilación y corrección?} No. Los p-values
+    de McNemar son 1.0 en todos los casos. Esto se debe al tamaño de muestra insuficiente
+    ($N=10$): con solo 3 pares discordantes entre SLM y DeepSeek, el test carece de poder
+    para detectar la diferencia observada del 10\%. Esto \emph{no} equivale a demostrar
+    equivalencia; indica evidencia insuficiente.
+
+  \item \textbf{¿Se rechazó $H_0$ para intentos?} \textbf{Sí} ($p = 0.002$, Wilcoxon).
+    El SLM requirió significativamente más intentos que ambos baselines. La diferencia
+    es consistente: todas las 10 operaciones tuvieron $A_{\text{SLM}} > A_{\text{baseline}}$.
+    El tamaño del efecto es grande (rango-biserial $r = 1.0$).
+
+  \item \textbf{Tamaño del efecto en corrección:}
+    Diferencia de proporciones SLM vs.\ DeepSeek: $\Delta p = -0.10$.
+    Diferencia SLM vs.\ Kimi: $\Delta p = 0.00$.
+    Efectos pequeños a nulos que requieren $N \geq 30$ para detectarse.
+
+  \item \textbf{Consistencia:} Los resultados de intentos son completamente consistentes
+    ($\sigma_A = 0.46$ para SLM, $\sigma_A = 0$ para baselines). Los resultados de
+    corrección varían por categoría — ver Sección de Comparación Crítica.
 \end{itemize}
 
 % -----------------------------------------------------------------------------
 \section{Comparación Crítica}
 
-% TODO: Completar con análisis real
+Los resultados no son uniformes entre categorías, lo que revela comportamientos
+cualitativamente distintos entre el método propuesto y los baselines.
 
-\textit{[Discutir si los resultados fueron consistentes entre las tres categorías del
-benchmark (elementwise, reducción, compuesta). Analizar si el método propuesto tuvo
-ventaja particular en alguna categoría. Considerar si las diferencias observadas pueden
-explicarse parcialmente por la diferencia de escala entre modelos.]}
+\textbf{Operaciones elementwise:} Los modelos frontier dominan (100\% ambos) frente
+al 80\% del SLM. El único fallo del SLM fue \texttt{relu}, una operación simple que
+los modelos grandes resuelven sin dificultad. Esto sugiere que la gramática GBNF
+garantiza estructura pero no suple la capacidad de razonamiento en casos donde el
+modelo base es insuficiente.
+
+\textbf{Reducciones:} El SLM supera a ambos frontier (66.7\% vs.\ 33.3\%). Esta es
+la única categoría donde la auto-reparación demostró valor neto: \texttt{rd\_03\_l2}
+(que requiere un algoritmo de reducción paralela de dos pasos) falló en DeepSeek en
+un solo intento pero fue corregido por el SLM en el segundo intento gracias al
+feedback del error. \texttt{rd\_01\_sum} falló para los tres métodos, estableciendo
+un techo de dificultad común.
+
+\textbf{Operaciones compuestas:} DeepSeek es el único que alcanza 100\% (2/2).
+El SLM y Kimi quedan en 50\% (1/2). El SLM falló en \texttt{layernorm} en 3
+intentos; Kimi falló en \texttt{softmax} en 1 intento. Esta categoría discrimina
+mejor la capacidad de razonamiento profundo que las categorías más simples.
+
+\textbf{¿Los resultados fueron consistentes?} Solo parcialmente. La diferencia de
+intentos fue perfectamente consistente (100\% de operaciones). Las diferencias en
+corrección fueron inconsistentes entre categorías — el SLM gana en reducción pero
+pierde en elementwise y compuesta — lo que sugiere que el beneficio de la
+auto-reparación es específico de dominio, no universal.
 
 % -----------------------------------------------------------------------------
 \section{Amenazas Observadas a la Validez}
@@ -591,26 +667,48 @@ explicarse parcialmente por la diferencia de escala entre modelos.]}
 \begin{table}[H]
 \centering
 \caption{Amenazas detectadas durante la ejecución}
-\begin{tabular}{p{3cm}p{5cm}lp{4cm}}
+\begin{tabular}{p{2.8cm}p{5.5cm}p{1.5cm}p{3cm}}
 \toprule
-\textbf{Amenaza} & \textbf{Descripción} & \textbf{Clasificación} & \textbf{Mitigación aplicada} \\
+\textbf{Amenaza} & \textbf{Descripción} & \textbf{Tipo} & \textbf{Mitigación} \\
 \midrule
-Asignación dinámica de GPU en Colab &
-  Distintas sesiones pueden recibir diferentes modelos de GPU, afectando speedup. &
+Tamaño de muestra insuficiente &
+  $N=10$ (vs.\ $N=30$ planificado) impide rechazar $H_0$ en McNemar.
+  Los p-values de 1.0 no son un hallazgo — son falta de poder estadístico. &
   Interna &
-  Documentar tipo de GPU por sesión. \\
-Validador con bugs &
-  Errores en el pipeline de validación (exec() vs.\ temp file) generaron falsos negativos
-  durante el desarrollo, afectando la interpretación inicial. &
+  Reportado explícitamente; conclusiones ajustadas. \\
+\midrule
+Bugs en el validador &
+  Durante el desarrollo, \texttt{exec()} en lugar de temp file generó falsos
+  negativos en capas 2 y 3. Se corrigió antes de ejecutar los experimentos
+  reportados (commit \texttt{ae1777a}). &
   Interna &
-  Correcciones aplicadas y versionadas en git. \\
-Benchmark pequeño &
-  30 operaciones pueden ser insuficientes para detectar diferencias en operaciones
-  complejas (compuesta). &
+  Fix versionado en git y verificado antes del benchmark. \\
+\midrule
+Ejecución sin GPU &
+  Una corrida previa ejecutó sin CUDA, reportando 8/10 basado solo en análisis
+  estático. Estos datos fueron descartados. &
+  Interna &
+  Re-ejecución completa con GPU T4 confirmada. \\
+\midrule
+Diferencia de escala entre modelos &
+  gpt-oss-20b (20B) vs.\ DeepSeek V4 Pro ($\sim$670B) vs.\ Kimi K2 ($\sim$1T MoE).
+  El gap es de 30--50$\times$ en parámetros. Cualquier ventaja del SLM puede
+  atribuirse a la arquitectura especializada, pero la desventaja puede atribuirse
+  al tamaño. No es posible separar ambos efectos en este diseño. &
+  Constructo &
+  Reconocido como limitación; necesitaría ablation sin gramática/repair. \\
+\midrule
+Un solo intento por baseline &
+  Los baselines se evaluaron con un único intento. Podría ser que con más intentos
+  (sin self-repair) los frontier alcanzaran mayor tasa. &
+  Interna &
+  Diseño deliberado para aislar el efecto de la auto-reparación. \\
+\midrule
+Benchmark restringido &
+  10 operaciones no representan el espacio de kernels GPU reales (matmul, flash
+  attention, conv2d). Las conclusiones no generalizan a operaciones más complejas. &
   Externa &
-  Análisis separado por categoría. \\
-\midrule
-\multicolumn{4}{c}{\textit{[Agregar amenazas adicionales detectadas durante experimentos]}} \\
+  Limitación explícita; trabajo futuro. \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -618,23 +716,73 @@ Benchmark pequeño &
 % -----------------------------------------------------------------------------
 \section{Discusión}
 
-% TODO: Completar después de ejecutar experimentos
+\textbf{¿La gramática GBNF aportó valor?} Parcialmente. En compilación, el SLM
+(80\%) superó a Kimi K2 (70\%) — la gramática eliminó errores de estructura que el
+modelo frontier cometió en 3 operaciones. Sin embargo, DeepSeek compiló al 90\% sin
+gramática, lo que sugiere que los modelos suficientemente capaces generan código
+estructuralmente correcto por sí solos. El valor de GBNF es mayor cuando el modelo
+base es más débil.
 
-\textit{[Guía: discutir si la gramática GBNF realmente aportó valor o si los baselines
-también habrían compilado al primer intento. Analizar si el ciclo de auto-reparación
-fue necesario. Evaluar si la diferencia de resultados entre el SLM y los modelos frontier
-se explica por el tamaño del modelo o por la infraestructura especializada. Discutir
-qué limitaciones quedaron abiertas.]}
+\textbf{¿El ciclo de auto-reparación fue necesario?} Sí, en el sentido de que sin
+él el SLM probablemente habría fallado más operaciones. Todas las operaciones exitosas
+del SLM requirieron 2 intentos, lo que indica que el primer intento falló en
+prácticamente todos los casos. Sin la auto-reparación, la tasa de éxito del SLM
+habría sido probablemente 0--1/10 en el primer intento. No obstante, este costo
+(2.30 llamadas promedio) es estadísticamente significativo ($p=0.002$) y representa
+un costo operacional real.
+
+\textbf{¿El modelo o la arquitectura explica los resultados?} Es imposible separar
+ambos factores en este diseño. El SLM tiene la arquitectura especializada pero solo
+20B parámetros; los baselines tienen mucha mayor capacidad pero ninguna especialización.
+Una ablación necesaria sería: (a) SLM sin gramática ni repair, (b) frontier con
+gramática y repair. Ninguna de estas condiciones fue evaluada.
+
+\textbf{¿Qué harían diferente?} Ejecutar $N \geq 30$ operaciones, incluir ablaciones
+del pipeline (solo gramática, solo repair, ambos), evaluar con múltiples seeds para
+medir variabilidad, y comparar SLM vs.\ frontier con y sin la infraestructura
+especializada.
 
 % -----------------------------------------------------------------------------
 \section{Conclusión}
 
-% TODO: Completar después de ejecutar experimentos
+\begin{itemize}
+  \item \textbf{¿Se rechazó $H_0$ para compilación y corrección?} No. Con $N=10$,
+    el poder estadístico fue insuficiente. Los p-values de McNemar = 1.0 reflejan
+    una limitación metodológica, no equivalencia entre métodos.
 
-\textit{[Guía: responder explícitamente cada pregunta de la rúbrica: ¿se rechazó $H_0$?
-¿Hubo evidencia estadística suficiente? ¿La diferencia fue consistente? ¿El tamaño del
-efecto fue relevante? ¿La mejora justificaría usar el método en producción? ¿Qué
-limitaciones identificaron? ¿Podría otro equipo reproducir el experimento?]}
+  \item \textbf{¿Se rechazó $H_0$ para intentos?} Sí ($p=0.002$, efecto grande,
+    $r=1.0$). El SLM requiere significativamente más llamadas LLM que los baselines.
+    Esta diferencia es consistente, reproducible y estadísticamente robusta.
+
+  \item \textbf{¿La diferencia en corrección fue consistente?} No uniformemente.
+    El SLM supera a los frontier en reducciones (66.7\% vs.\ 33.3\%) pero queda por
+    debajo en elementwise y compuestas. El efecto de la auto-reparación es
+    específico de categoría.
+
+  \item \textbf{¿El tamaño del efecto fue relevante?} Para intentos: grande ($r=1.0$).
+    Para corrección: pequeño a nulo ($\Delta p \leq 0.10$) e indetectable con $N=10$.
+
+  \item \textbf{¿La mejora justificaría usar el método en producción?} No con la
+    evidencia actual. El SLM iguala a Kimi K2 en corrección (ambos 70\%) pero a un
+    costo de 2.3$\times$ más llamadas. DeepSeek supera al SLM (80\%) con un único
+    intento. La única ventaja demostrada es en reducciones, una categoría pequeña del
+    benchmark.
+
+  \item \textbf{¿Qué limitaciones quedaron?} Tamaño de muestra insuficiente,
+    ausencia de ablaciones, falta de medición de speedup (requería benchmark de
+    timing separado), y una sola ejecución por operación (sin control de
+    variabilidad por no-determinismo).
+
+  \item \textbf{¿Podría otro equipo reproducir el experimento?} Sí, con las
+    instrucciones del repositorio (\url{https://github.com/casrhub/llm-gpu-kernel-generation},
+    commit \texttt{841054e}), las mismas claves de API, y una GPU NVIDIA T4 en Google Colab.
+    La variabilidad esperada por diferencias de sesión de Colab es baja para las métricas
+    de corrección; el speedup (no medido aquí) sería más variable.
+
+  \item \textbf{¿Qué métricas fueron engañosas?} Los p-values de McNemar = 1.0 podrían
+    interpretarse como ``no hay diferencia'', cuando en realidad indican insuficiencia de
+    datos. Esta es la debilidad metodológica más importante del estudio.
+\end{itemize}
 
 % =============================================================================
 \end{document}
