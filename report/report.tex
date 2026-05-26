@@ -196,7 +196,8 @@ comparabilidad:
   \item \textbf{Hardware:} NVIDIA T4 (Google Colab), misma sesión por método.
   \item \textbf{Benchmark:} Mismo conjunto de operaciones PyTorch para todos los métodos.
   \item \textbf{Temperatura:} $T = 0.0$ en todos los modelos (salidas deterministas).
-  \item \textbf{Número de operaciones evaluadas:} $N = 30$ operaciones por método.
+  \item \textbf{Número de operaciones evaluadas:} $N = 10$ operaciones por método
+    (planificado: $N = 30$; reducido por restricciones de tiempo y costo de API).
   \item \textbf{Prompt de sistema:} El prompt de sistema del método propuesto incluye
     reglas explícitas de Triton; los baselines reciben el mismo enunciado de tarea.
   \item \textbf{Semilla aleatoria de inputs:} \texttt{torch.manual\_seed(42)} para
@@ -315,7 +316,9 @@ n \approx \frac{(z_{\alpha/2} + z_{\beta})^2}{(\text{efecto esperado})^2}
 = \frac{(1.96 + 0.84)^2}{0.5^2} \approx 31.4
 \]
 
-Por lo tanto, $N = 30$ operaciones por método es suficiente dado el efecto esperado.
+Por lo tanto, $N = 30$ operaciones por método sería suficiente dado el efecto esperado.
+En la ejecución real se utilizaron $N = 10$ operaciones, lo que reduce el poder
+estadístico y es reconocido como limitación del estudio (ver Parte II).
 
 % -----------------------------------------------------------------------------
 \section{Plan Estadístico}
@@ -469,7 +472,7 @@ Baseline 2 & Kimi K2 & \texttt{kimi-k2p5} & Fireworks AI & $\sim$1T (MoE) \\
 \subsection{Validez Externa}
 
 \begin{itemize}
-  \item \textbf{Generalización limitada:} El benchmark incluye 30 operaciones.
+  \item \textbf{Generalización limitada:} El benchmark incluye 10 operaciones.
     Las conclusiones pueden no generalizarse a operaciones más complejas
     (transformers completos, operaciones matriciales avanzadas).
 
