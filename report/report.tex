@@ -226,14 +226,16 @@ El benchmark incluye operaciones representativas de tres categorías de compleji
 
 \begin{table}[H]
 \centering
-\caption{Categorías del benchmark}
+\caption{Categorías del benchmark (ejecutado: $N=10$; planificado: $N=30$)}
 \begin{tabular}{llp{7cm}}
 \toprule
-\textbf{Categoría} & \textbf{\# ops} & \textbf{Ejemplos} \\
+\textbf{Categoría} & \textbf{\# ops} & \textbf{Operaciones evaluadas} \\
 \midrule
-Elementwise simple & 10 & \texttt{out = x * y + z}, \texttt{out = relu(x)}, \texttt{out = x + y} \\
-Reducción & 10 & \texttt{out = sum(x)}, \texttt{out = max(x, dim=0)} \\
-Compuesta & 10 & \texttt{out = softmax(x)}, \texttt{out = layer\_norm(x, w, b)} \\
+Elementwise & 5 & \texttt{x+y}, \texttt{x*y+z}, \texttt{x*y}, \texttt{relu(x)}, \texttt{x*sigmoid(x)} \\
+Reducción   & 3 & \texttt{x.sum()}, \texttt{x.max()}, \texttt{(x*x).sum()} \\
+Compuesta   & 2 & \texttt{softmax(x)}, \texttt{layernorm(x)} \\
+\midrule
+\textbf{Total} & \textbf{10} & \\
 \bottomrule
 \end{tabular}
 \end{table}
