@@ -252,6 +252,7 @@ def main():
     parser.add_argument("--limit-base-ops", type=int, default=0, help="0 means all")
     parser.add_argument("--optimize", action="store_true", help="Run autotune timing")
     parser.add_argument("--output-dir", default="benchmark/results_campaign")
+    parser.add_argument("--dry-run", action="store_true", help="Print config and exit")
 
     args = parser.parse_args()
 
@@ -297,6 +298,10 @@ def main():
     print("EXTENDED CAMPAIGN CONFIG")
     print(json.dumps(campaign_meta, indent=2))
     print("=" * 72)
+
+    if args.dry_run:
+        print("Dry run mode enabled. No model calls were executed.")
+        return
 
     for track in tracks:
         track = track.lower()
