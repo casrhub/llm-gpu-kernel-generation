@@ -261,7 +261,7 @@ def main():
         raise RuntimeError("FIREWORKS_API_KEY not set")
 
     tracks = _parse_csv_list(args.tracks)
-    sizes = _parse_csv_list(args.sizes, int)
+    sizes = sorted(set(_parse_csv_list(args.sizes, int)))
     categories = _parse_csv_list(args.categories) if args.categories else None
 
     if not sizes or any(s <= 0 for s in sizes):
