@@ -264,6 +264,13 @@ def main():
     sizes = _parse_csv_list(args.sizes, int)
     categories = _parse_csv_list(args.categories) if args.categories else None
 
+    if not sizes or any(s <= 0 for s in sizes):
+        raise ValueError("--sizes must contain positive integers")
+    if args.repeats <= 0:
+        raise ValueError("--repeats must be > 0")
+    if args.max_attempts <= 0:
+        raise ValueError("--max-attempts must be > 0")
+
     ops = _build_extended_ops(
         base_ops=BENCHMARK_OPS,
         sizes=sizes,
