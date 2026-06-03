@@ -215,6 +215,16 @@ def _run_track(
     speedups = [r["speedup"] for r in rows if r["speedup"] is not None]
     mean_speedup = sum(speedups) / len(speedups) if speedups else None
 
+    by_category = {}
+    for cat in sorted({r["category"] for r in rows}):
+        cat_rows = [r for r in rows if r["category"] == cat]
+        cat_total = len(cat_rows)
+        by_category[cat] = {
+            "total": cat_total,
+            "correctness_rate": round(sum(r["correctness_pass"] for r in cat_rows) / cat_total, 4),
+            "compilation_rate": round(sum(r["compilation_pass"] for r in cat_rows) / cat_total, 4),
+        }
+
     summary = {
         "total": total,
         "correctness_rate": round(n_success / total, 4) if total else 0.0,
@@ -222,6 +232,7 @@ def _run_track(
         "mean_attempts": round(mean_attempts, 4),
         "mean_speedup": round(mean_speedup, 4) if mean_speedup is not None else None,
         "n_speedup_measured": len(speedups),
+        "by_category": by_category,
     }
 
     print("\n" + "-" * 72)
@@ -233,6 +244,11 @@ def _run_track(
     )
     if mean_speedup is not None:
         print(f"Mean speedup: {mean_speedup:.2f}x over {len(speedups)} optimized ops")
+    for cat, cat_s in summary["by_category"].items():
+        print(
+            f"  [{cat}] correct={100*cat_s['correctness_rate']:.1f}% "
+            f"compile={100*cat_s['compilation_rate']:.1f}% n={cat_s['total']}"
+        )
     print("-" * 72)
 
     return rows, summary
