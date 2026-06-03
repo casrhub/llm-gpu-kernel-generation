@@ -8,7 +8,7 @@ Usage (Colab):
     %run benchmark/run_method.py
 
     # Or with a custom SLM:
-    SLM_MODEL=accounts/fireworks/models/llama-v3p1-8b-instruct \
+    SLM_MODEL=accounts/fireworks/models/gpt-oss-20b \
         python benchmark/run_method.py
 """
 import sys, os, json, time
@@ -24,7 +24,7 @@ from src.translator.pytorch_to_triton import generate_kernel
 # ── Config ────────────────────────────────────────────────────────────────────
 SLM_MODEL     = os.environ.get(
     "SLM_MODEL",
-    "accounts/fireworks/models/llama-v3p1-8b-instruct",
+    "accounts/fireworks/models/gpt-oss-20b",
 )
 REPAIR_MODEL  = os.environ.get("REPAIR_MODEL", SLM_MODEL)
 MAX_ATTEMPTS  = int(os.environ.get("MAX_ATTEMPTS", "3"))
