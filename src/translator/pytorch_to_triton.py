@@ -179,8 +179,7 @@ def translate(
 
     raw = response.choices[0].message.content
 
-    # Some models (e.g. gpt-oss) leak internal chain-of-thought tokens
-    # like <|end|><|start|>assistant... into the response. Truncate there.
+  
     if "<|" in raw:
         raw = raw[:raw.index("<|")]
 
