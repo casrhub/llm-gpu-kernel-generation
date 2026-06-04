@@ -77,7 +77,8 @@ def _inject_autotune(kernel_code: str, category: str) -> str:
       1. Prepend @triton.autotune(...) before @triton.jit
       2. Remove BLOCK_SIZE=<value> keyword arg from the kernel launch call
          inside the launcher — autotune injects it automatically from the
-         winning config, so passing it explicitly causes an error
+         winning config, so passing it explicitly causes an error, block size
+         will be handled by autotune
       3. Remove the hardcoded BLOCK_SIZE = <int> assignment in the launcher body
          since that value is now managed by autotune
     """
