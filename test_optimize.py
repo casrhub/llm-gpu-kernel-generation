@@ -5,8 +5,9 @@ Test the full two-step pipeline:
 
 Requires a CUDA GPU. Run in Colab:
     %run test_optimize.py
-    %run test_optimize.py -- --op rd_01_sum
-    %run test_optimize.py -- --op cp_01_softmax
+    %run test_optimize.py --op rd_01_sum
+    %run test_optimize.py --op cp_01_softmax
+    %run test_optimize.py --op ew_02_fma --model accounts/fireworks/models/llama-v3p1-70b-instruct
 """
 import sys
 import argparse
@@ -20,9 +21,13 @@ from src.optimizer.autotune import optimize_kernel
 from benchmark.operations import BENCHMARK_OPS
 
 # ── Parse operation argument ──────────────────────────────────────────────────
+DEFAULT_MODEL = "accounts/fireworks/models/gpt-oss-20b"
+
 parser = argparse.ArgumentParser()
 parser.add_argument("--op", default="ew_02_fma",
                     help="Operation id from benchmark/operations.py")
+parser.add_argument("--model", default=DEFAULT_MODEL,
+                    help="Fireworks model ID for generation and repair")
 args, _ = parser.parse_known_args()
 
 op = next((o for o in BENCHMARK_OPS if o["id"] == args.op), None)
@@ -38,6 +43,7 @@ test_inputs  = op["test_inputs"]
 category     = op["category"]
 
 print(f"Operation : {op['id']}  ({category})")
+print(f"Model     : {args.model}")
 print(f"Code      : {pytorch_code}")
 
 # ── Step 1: Generate and validate ────────────────────────────────────────────
@@ -50,8 +56,8 @@ gen_result = generate_kernel(
     input_shapes     = input_shapes,
     pytorch_fn       = pytorch_fn,
     test_inputs      = test_inputs,
-    generation_model = "accounts/fireworks/models/gpt-oss-20b",
-    repair_model     = "accounts/fireworks/models/gpt-oss-20b",
+    generation_model = args.model,
+    repair_model     = args.model,
     max_attempts     = 3,
     verbose          = True,
 )
