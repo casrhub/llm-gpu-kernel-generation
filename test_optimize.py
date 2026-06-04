@@ -10,11 +10,20 @@ Requires a CUDA GPU. Run in Colab:
     %run test_optimize.py --op ew_02_fma --model accounts/fireworks/models/llama-v3p1-70b-instruct
 """
 import sys
+import os
 import argparse
 import torch
 from dotenv import load_dotenv
 
 load_dotenv()
+
+FIREWORKS_API_KEY = os.environ.get("FIREWORKS_API_KEY")
+if not FIREWORKS_API_KEY:
+    raise EnvironmentError(
+        "FIREWORKS_API_KEY not set. Run this first:\n"
+        "  from google.colab import userdata; import os\n"
+        "  os.environ['FIREWORKS_API_KEY'] = userdata.get('FIREWORKS_API_KEY')"
+    )
 
 from src.translator.pytorch_to_triton import generate_kernel
 from src.optimizer.autotune import optimize_kernel
@@ -59,6 +68,7 @@ gen_result = generate_kernel(
     generation_model = args.model,
     repair_model     = args.model,
     max_attempts     = 3,
+    api_key          = FIREWORKS_API_KEY,
     verbose          = True,
 )
 
