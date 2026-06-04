@@ -269,6 +269,7 @@ def main():
     parser.add_argument("--optimize", action="store_true", help="Run autotune timing")
     parser.add_argument("--output-dir", default="benchmark/results_campaign")
     parser.add_argument("--output-tag", default="", help="Optional label appended to output files")
+    parser.add_argument("--save-failures-only", action="store_true", help="Store only failed rows in results JSON")
     parser.add_argument("--dry-run", action="store_true", help="Print config and exit")
 
     args = parser.parse_args()
@@ -304,6 +305,7 @@ def main():
     campaign_meta = {
         "timestamp": stamp,
         "output_tag": args.output_tag,
+        "save_failures_only": args.save_failures_only,
         "tracks": tracks,
         "method_model": args.method_model,
         "repair_model": args.repair_model or args.method_model,
@@ -346,12 +348,16 @@ def main():
             repair_model=(args.repair_model or args.method_model),
         )
 
+        rows_to_save = [r for r in rows if not r["success"]] if args.save_failures_only else rows
+
         payload = {
             "campaign": campaign_meta,
             "track": track,
             "model": model,
             "summary": summary,
-            "results": rows,
+            "results": rows_to_save,
+            "stored_rows": len(rows_to_save),
+            "total_rows": len(rows),
         }
 
         tag_suffix = f"_{args.output_tag}" if args.output_tag else ""
