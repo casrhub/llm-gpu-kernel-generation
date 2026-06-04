@@ -34,7 +34,7 @@ from src.optimizer.autotune import optimize_kernel
 # ── Config ────────────────────────────────────────────────────────────────────
 BASELINE_MODEL = os.environ.get(
     "BASELINE_MODEL",
-    "accounts/fireworks/models/deepseek-v4-0",
+    "accounts/fireworks/models/deepseek-v4-pro",
 )
 API_KEY    = os.environ.get("FIREWORKS_API_KEY")
 model_slug = BASELINE_MODEL.split("/")[-1]
