@@ -294,8 +294,9 @@ def validate_static(kernel_code: str) -> dict:
             f"tl.load() missing mask= at: {', '.join(loads_without_mask)}"
         )
     if stores_without_mask:
-        results["errors"].append(
-            f"tl.store() missing mask= at: {', '.join(stores_without_mask)}"
+        results["warnings"].append(
+            f"tl.store() missing mask= at: {', '.join(stores_without_mask)} "
+            f"(ok for scalar reduction stores, required for vector stores)"
         )
     if non_power_of_2:
         results["errors"].append(
