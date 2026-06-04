@@ -326,6 +326,8 @@ def main():
         print("Dry run mode enabled. No model calls were executed.")
         return
 
+    generated_files = []
+
     for track in tracks:
         track = track.lower()
         if track not in ("method", "baseline"):
@@ -354,7 +356,13 @@ def main():
         with open(out_file, "w") as f:
             json.dump(payload, f, indent=2)
 
+        generated_files.append(str(out_file))
         print(f"Saved: {out_file}")
+
+    manifest_file = out_dir / f"campaign_manifest_{stamp}.json"
+    with open(manifest_file, "w") as f:
+        json.dump({"campaign": campaign_meta, "files": generated_files}, f, indent=2)
+    print(f"Saved: {manifest_file}")
 
 
 if __name__ == "__main__":
