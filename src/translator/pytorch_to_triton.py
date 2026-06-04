@@ -179,9 +179,16 @@ def translate(
 
     raw = response.choices[0].message.content
 
-  
     if "<|" in raw:
         raw = raw[:raw.index("<|")]
+
+    # Strip markdown code fences (frontier models ignore GBNF grammar)
+    if raw.lstrip().startswith("```"):
+        lines = raw.strip().splitlines()
+        lines = lines[1:]  # drop opening ```python / ```
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        raw = "\n".join(lines)
 
     if verbose:
         print("RAW RESPONSE:")
