@@ -268,6 +268,7 @@ def main():
     parser.add_argument("--limit-base-ops", type=int, default=0, help="0 means all")
     parser.add_argument("--optimize", action="store_true", help="Run autotune timing")
     parser.add_argument("--output-dir", default="benchmark/results_campaign")
+    parser.add_argument("--output-tag", default="", help="Optional label appended to output files")
     parser.add_argument("--dry-run", action="store_true", help="Print config and exit")
 
     args = parser.parse_args()
@@ -302,6 +303,7 @@ def main():
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     campaign_meta = {
         "timestamp": stamp,
+        "output_tag": args.output_tag,
         "tracks": tracks,
         "method_model": args.method_model,
         "repair_model": args.repair_model or args.method_model,
@@ -352,14 +354,16 @@ def main():
             "results": rows,
         }
 
-        out_file = out_dir / f"results_campaign_{track}_{_slug(model)}_{stamp}.json"
+        tag_suffix = f"_{args.output_tag}" if args.output_tag else ""
+        out_file = out_dir / f"results_campaign_{track}_{_slug(model)}_{stamp}{tag_suffix}.json"
         with open(out_file, "w") as f:
             json.dump(payload, f, indent=2)
 
         generated_files.append(str(out_file))
         print(f"Saved: {out_file}")
 
-    manifest_file = out_dir / f"campaign_manifest_{stamp}.json"
+    tag_suffix = f"_{args.output_tag}" if args.output_tag else ""
+    manifest_file = out_dir / f"campaign_manifest_{stamp}{tag_suffix}.json"
     with open(manifest_file, "w") as f:
         json.dump({"campaign": campaign_meta, "files": generated_files}, f, indent=2)
     print(f"Saved: {manifest_file}")
