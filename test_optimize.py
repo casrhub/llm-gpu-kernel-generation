@@ -5,7 +5,11 @@ Test the full two-step pipeline:
 
 Requires a CUDA GPU. Run in Colab:
     %run test_optimize.py
+    %run test_optimize.py -- --op rd_01_sum
+    %run test_optimize.py -- --op cp_01_softmax
 """
+import sys
+import argparse
 import torch
 from dotenv import load_dotenv
 
@@ -13,13 +17,28 @@ load_dotenv()
 
 from src.translator.pytorch_to_triton import generate_kernel
 from src.optimizer.autotune import optimize_kernel
+from benchmark.operations import BENCHMARK_OPS
 
-# ── Operation to test ─────────────────────────────────────────────────────────
-pytorch_code = "out = x * y + z"
-input_shapes = {"x": [1024], "y": [1024], "z": [1024]}
-pytorch_fn   = lambda x, y, z: x * y + z
-test_inputs  = [torch.randn(1024), torch.randn(1024), torch.randn(1024)]
-category     = "elementwise"
+# ── Parse operation argument ──────────────────────────────────────────────────
+parser = argparse.ArgumentParser()
+parser.add_argument("--op", default="ew_02_fma",
+                    help="Operation id from benchmark/operations.py")
+args, _ = parser.parse_known_args()
+
+op = next((o for o in BENCHMARK_OPS if o["id"] == args.op), None)
+if op is None:
+    ids = [o["id"] for o in BENCHMARK_OPS]
+    print(f"Unknown op '{args.op}'. Available: {ids}")
+    sys.exit(1)
+
+pytorch_code = op["pytorch_code"]
+input_shapes = op["input_shapes"]
+pytorch_fn   = op["pytorch_fn"]
+test_inputs  = op["test_inputs"]
+category     = op["category"]
+
+print(f"Operation : {op['id']}  ({category})")
+print(f"Code      : {pytorch_code}")
 
 # ── Step 1: Generate and validate ────────────────────────────────────────────
 print("=" * 60)
@@ -54,7 +73,7 @@ opt_result = optimize_kernel(
     test_inputs = test_inputs,
     pytorch_fn  = pytorch_fn,
     category    = category,
-    output_path = "fma_optimized.py",
+    output_path = f"{op['id']}_optimized.py",
     verbose     = True,
 )
 
@@ -71,6 +90,6 @@ if opt_result["success"]:
     print(f"PyTorch time         : {opt_result['ms_pytorch']:.3f} ms")
     print(f"Speedup              : {opt_result['speedup']:.2f}x")
     if opt_result.get("output_path"):
-        print(f"Saved to             : fma_optimized.py")
+        print(f"Saved to             : {op['id']}_optimized.py")
 else:
     print(f"Errors: {opt_result['errors']}")
