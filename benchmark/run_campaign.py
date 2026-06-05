@@ -336,6 +336,7 @@ def main():
         return
 
     generated_files = []
+    track_summaries = []
 
     for track in tracks:
         track = track.lower()
@@ -371,12 +372,21 @@ def main():
             json.dump(payload, f, indent=2)
 
         generated_files.append(str(out_file))
+        track_summaries.append({"track": track, "model": model, "summary": summary})
         print(f"Saved: {out_file}")
 
     tag_suffix = f"_{args.output_tag}" if args.output_tag else ""
     manifest_file = out_dir / f"campaign_manifest_{stamp}{tag_suffix}.json"
     with open(manifest_file, "w") as f:
-        json.dump({"campaign": campaign_meta, "files": generated_files}, f, indent=2)
+        json.dump(
+            {
+                "campaign": campaign_meta,
+                "files": generated_files,
+                "track_summaries": track_summaries,
+            },
+            f,
+            indent=2,
+        )
     print(f"Saved: {manifest_file}")
 
 
