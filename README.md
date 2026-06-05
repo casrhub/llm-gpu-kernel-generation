@@ -59,21 +59,32 @@ Results are saved as JSON in `benchmark/results_campaign/` with a manifest summa
 
 ## How It Works
 
-```
-PyTorch Operation (e.g., "out = x + y")
-         ↓
-    [LLM + GBNF Grammar] ← generates valid Triton structure
-         ↓
-    [Layer 1: Static Checks] ← AST parsing, Triton rules
-         ↓ (if fail: feedback loop)
-    [Layer 2: GPU Compile] ← Triton JIT
-         ↓ (if fail: feedback loop)  
-    [Layer 3: Correctness] ← torch.allclose validation
-         ↓ (if fail: feedback loop)
-    ✅ Optimized Kernel
+```mermaid
+graph TD
+    A["PyTorch Operation<br/>(e.g., 'out = x + y')"]
+    B["LLM + GBNF Grammar<br/>(generates valid Triton structure)"]
+    C["Layer 1: Static Checks<br/>(AST parsing, Triton rules)"]
+    D["Layer 2: GPU Compile<br/>(Triton JIT)"]
+    E["Layer 3: Correctness<br/>(torch.allclose validation)"]
+    F["Optimized Kernel"]
+    G["Feedback Loop<br/>(retry up to 3x)"]
+    
+    A --> B
+    B --> C
+    C -->|fail| G
+    G -->|retry| B
+    C -->|pass| D
+    D -->|fail| G
+    D -->|pass| E
+    E -->|fail| G
+    E -->|pass| F
+    
+    style A fill:#e1f5ff
+    style F fill:#c8e6c9
+    style G fill:#ffccbc
 ```
 
-Each layer is stricter than the last. The model gets up to 3 attempts to fix errors before the operation is marked as failed.
+Each validation layer is stricter than the last. The model gets up to 3 repair attempts before an operation is marked as failed.
 
 ## Project Structure
 
