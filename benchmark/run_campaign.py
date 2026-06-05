@@ -22,6 +22,7 @@ Typical usage (Colab):
 import argparse
 import json
 import os
+import random
 import sys
 import time
 from copy import deepcopy
@@ -264,6 +265,7 @@ def main():
     parser.add_argument("--repeats", type=int, default=2)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--max-attempts", type=int, default=3)
+    parser.add_argument("--shuffle", action="store_true", help="Shuffle expanded operations deterministically")
     parser.add_argument("--categories", default="", help="Optional comma list")
     parser.add_argument("--limit-base-ops", type=int, default=0, help="0 means all")
     parser.add_argument("--optimize", action="store_true", help="Run autotune timing")
@@ -297,6 +299,8 @@ def main():
         categories=categories,
         limit_base_ops=args.limit_base_ops,
     )
+    if args.shuffle:
+        random.Random(args.seed).shuffle(ops)
 
     out_dir = Path(args.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -313,6 +317,7 @@ def main():
         "sizes": sizes,
         "repeats": args.repeats,
         "seed": args.seed,
+        "shuffle": args.shuffle,
         "max_attempts": args.max_attempts,
         "categories": categories,
         "limit_base_ops": args.limit_base_ops,
