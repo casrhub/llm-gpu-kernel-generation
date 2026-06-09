@@ -61,30 +61,36 @@ Results are saved as JSON in `benchmark/results_campaign/` with a manifest summa
 
 ```mermaid
 graph TD
-  %% Inputs
-  I1["pytorch_code (string)"]
-  I2["input_shapes (dict)"]
-  I3["pytorch_fn (CPU ref)"]
-  I4["test_inputs (tensors)"]
-  I5["max_attempts (int)"]
+  subgraph IN[INPUTS]
+    I1["pytorch_code (string)"]
+    I2["input_shapes (dict)"]
+    I3["pytorch_fn (CPU ref)"]
+    I4["test_inputs (tensors)"]
+    I5["max_attempts (int)"]
+  end
 
-  %% Main generation and validation path
-  GK["generate_kernel()"]
-  M["gpt-oss-20b"]
-  T["translate()<br/>SLM + GBNF grammar"]
-  L1["Layer 1 - Static (AST)<br/>Syntax + Triton rules"]
-  L2["Layer 2 - GPU compile<br/>tempfile + importlib"]
-  L3["Layer 3 - Correctness<br/>pytorch_fn vs kernel output"]
-  VK["Validated kernel (string)"]
-  FB["FAIL -> feedback<br/>error msg + broken code"]
-  GPU["Requires Google Colab GPU T4"]
+  subgraph GP[GENERATION PHASE]
+    GK["generate_kernel()"]
+    M["gpt-oss-20b"]
+    T["translate()<br/>SLM + GBNF grammar"]
+  end
 
-  %% Optimization path
-  OK["optimize_kernel()<br/>hardware-aware autotuning"]
-  INJ["_inject_autotune()<br/>Remove hardcoded BLOCK_SIZE<br/>add @triton.autotune"]
-  CFG["Config space<br/>BLOCK_SIZE: 256 / 512 / 1024<br/>num_warps: 4 or 8"]
-  BM["Benchmark all configs<br/>picks fastest on target GPU"]
-  OUT["OUTPUT<br/>best_block_size<br/>best_num_warps + speedup vs PyTorch"]
+  subgraph VP[VALIDATION PHASE]
+    L1["Layer 1 - Static (AST)<br/>Syntax + Triton rules"]
+    L2["Layer 2 - GPU compile<br/>tempfile + importlib"]
+    L3["Layer 3 - Correctness<br/>pytorch_fn vs kernel output"]
+    VK["Validated kernel (string)"]
+    FB["FAIL -> feedback<br/>error msg + broken code"]
+    GPU["Requires Google Colab GPU T4"]
+  end
+
+  subgraph OP[OPTIMIZATION PHASE]
+    OK["optimize_kernel()<br/>hardware-aware autotuning"]
+    INJ["_inject_autotune()<br/>Remove hardcoded BLOCK_SIZE<br/>add @triton.autotune"]
+    CFG["Config space<br/>BLOCK_SIZE: 256 / 512 / 1024<br/>num_warps: 4 or 8"]
+    BM["Benchmark all configs<br/>picks fastest on target GPU"]
+    OUT["OUTPUT<br/>best_block_size<br/>best_num_warps + speedup vs PyTorch"]
+  end
 
   I1 --> T
   I2 --> T
@@ -114,19 +120,21 @@ graph TD
   CFG --> BM
   BM --> OUT
 
-  style GK fill:#dff0d8,stroke:#b2c8a3
-  style M fill:#ecebe5,stroke:#c8c6be
-  style T fill:#e9e6fb,stroke:#c0b8ea
-  style L1 fill:#f7ecd8,stroke:#d8bf8f
-  style L2 fill:#f7ecd8,stroke:#d8bf8f
-  style L3 fill:#f7ecd8,stroke:#d8bf8f
-  style VK fill:#dff0d8,stroke:#b2c8a3
-  style FB fill:#f8e2e2,stroke:#d7a6a6
-  style OK fill:#e1effc,stroke:#9ebddd
-  style INJ fill:#e1effc,stroke:#9ebddd
-  style CFG fill:#e1effc,stroke:#9ebddd
-  style BM fill:#e1effc,stroke:#9ebddd
-  style OUT fill:#eef6df,stroke:#b7c895
+  classDef input fill:#e8f0fb,stroke:#9fb4d6,color:#243b5a
+  classDef gen fill:#e3eed7,stroke:#b4c89f,color:#2e4a24
+  classDef val fill:#f5ecd7,stroke:#d4be92,color:#5c4622
+  classDef fail fill:#f8e3e3,stroke:#d6a5a5,color:#6a2f2f
+  classDef opt fill:#e2effb,stroke:#9ebddd,color:#234261
+  classDef out fill:#eef6df,stroke:#b7c895,color:#2c4a23
+  classDef side fill:#ecebe5,stroke:#c8c6be,color:#4b4a44
+
+  class I1,I2,I3,I4,I5 input
+  class GK,T gen
+  class L1,L2,L3,VK val
+  class FB fail
+  class OK,INJ,CFG,BM opt
+  class OUT out
+  class M,GPU side
 ```
 
 Each validation layer is stricter than the last. The model gets up to 3 repair attempts before an operation is marked as failed.
