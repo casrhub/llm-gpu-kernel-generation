@@ -61,6 +61,8 @@ Results are saved as JSON in `benchmark/results_campaign/` with a manifest summa
 
 ```mermaid
 graph TD
+  TITLE["Triton GPU kernel generation pipeline"]
+
   subgraph IN[INPUTS]
     I1["pytorch_code (string)"]
     I2["input_shapes (dict)"]
@@ -69,58 +71,66 @@ graph TD
     I5["max_attempts (int)"]
   end
 
-  subgraph GP[GENERATION PHASE]
-    GK["generate_kernel()"]
-    M["gpt-oss-20b"]
-    T["translate()<br/>SLM + GBNF grammar"]
-  end
+  GPH["GENERATION PHASE"]
+  VPH["VALIDATION PHASE"]
+  OPH["OPTIMIZATION PHASE"]
 
-  subgraph VP[VALIDATION PHASE]
-    L1["Layer 1 - Static (AST)<br/>Syntax + Triton rules"]
-    L2["Layer 2 - GPU compile<br/>tempfile + importlib"]
-    L3["Layer 3 - Correctness<br/>pytorch_fn vs kernel output"]
-    VK["Validated kernel (string)"]
-    FB["FAIL -> feedback<br/>error msg + broken code"]
-    GPU["Requires Google Colab GPU T4"]
-  end
+  GK["generate_kernel()"]
+  M["gpt-oss-20b"]
+  T["translate()<br/>SLM + GBNF grammar"]
 
-  subgraph OP[OPTIMIZATION PHASE]
-    OK["optimize_kernel()<br/>hardware-aware autotuning"]
-    INJ["_inject_autotune()<br/>Remove hardcoded BLOCK_SIZE<br/>add @triton.autotune"]
-    CFG["Config space<br/>BLOCK_SIZE: 256 / 512 / 1024<br/>num_warps: 4 or 8"]
-    BM["Benchmark all configs<br/>picks fastest on target GPU"]
-    OUT["OUTPUT<br/>best_block_size<br/>best_num_warps + speedup vs PyTorch"]
-  end
+  L1["Layer 1 - Static (AST)<br/>Syntax + Triton rules"]
+  L2["Layer 2 - GPU compile<br/>tempfile + importlib"]
+  L3["Layer 3 - Correctness<br/>pytorch_fn vs kernel output"]
+  VK["Validated kernel (string)"]
 
-  I1 --> T
-  I2 --> T
-  I3 --> L3
-  I4 --> L3
-  I5 --> GK
+  FB["FAIL -> feedback<br/>error msg + broken code"]
+  SR["self-repair<br/>loop"]
+  GPU["Requires Google<br/>Colab GPU T4"]
 
+  OK["optimize_kernel()<br/>hardware-aware autotuning"]
+  INJ["_inject_autotune()<br/>Remove hardcoded BLOCK_SIZE<br/>add @triton.autotune"]
+  CFG["Config space<br/>BLOCK_SIZE: 256 / 512 / 1024<br/>num_warps: 4 or 8"]
+  BM["Benchmark all configs<br/>picks fastest on target GPU"]
+  OUT["OUTPUT<br/>best_block_size<br/>best_num_warps - speedup vs PyTorch"]
+
+  %% Main flow (same as reference)
   GK --> T
   M -.-> T
-
   T --> L1
   L1 -->|PASS| L2
   L2 -->|PASS| L3
   L3 -->|PASS| VK
+  VK --> OK
+  OK --> OUT
 
+  %% Inputs merged into translate path (same visual intent)
+  I1 --> T
+  I2 --> T
+  I3 --> T
+  I4 --> T
+  I5 --> T
+
+  %% Fail feedback loop
   L1 -->|FAIL| FB
   L2 -->|FAIL| FB
   L3 -->|FAIL| FB
-  FB -. self-repair loop .-> T
+  FB -.-> T
+  FB -.-> SR
 
+  %% GPU dependency for validation layers
   GPU --> L2
   GPU --> L3
 
-  VK --> OK
+  %% Optimization side branch
   OK --> INJ
   INJ --> CFG
   CFG --> BM
-  BM --> OUT
 
-  classDef input fill:#e8f0fb,stroke:#9fb4d6,color:#243b5a
+  %% Styling
+  classDef title fill:transparent,stroke:transparent,color:#2f2f2f,font-weight:bold
+  classDef phase fill:transparent,stroke:transparent,color:#8a8a8a,font-size:11px
+  classDef input fill:#e8f0fb,stroke:#a9bfdc,color:#314a6c
   classDef gen fill:#e3eed7,stroke:#b4c89f,color:#2e4a24
   classDef val fill:#f5ecd7,stroke:#d4be92,color:#5c4622
   classDef fail fill:#f8e3e3,stroke:#d6a5a5,color:#6a2f2f
@@ -128,6 +138,8 @@ graph TD
   classDef out fill:#eef6df,stroke:#b7c895,color:#2c4a23
   classDef side fill:#ecebe5,stroke:#c8c6be,color:#4b4a44
 
+  class TITLE title
+  class GPH,VPH,OPH,SR phase
   class I1,I2,I3,I4,I5 input
   class GK,T gen
   class L1,L2,L3,VK val
