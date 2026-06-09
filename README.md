@@ -94,28 +94,31 @@ graph TD
   BM["Benchmark all configs<br/>picks fastest on target GPU"]
   OUT["OUTPUT<br/>best_block_size<br/>best_num_warps - speedup vs PyTorch"]
 
-  %% Main flow (same as reference)
+  %% Title anchor
+  TITLE --> GK
+
+  %% Main center flow
   GK --> T
   M -.-> T
+  GPH --> T
+  T --> VPH
   T --> L1
   L1 -->|PASS| L2
   L2 -->|PASS| L3
   L3 -->|PASS| VK
+  VK --> OPH
   VK --> OK
   OK --> OUT
 
-  %% Inputs merged into translate path (same visual intent)
-  I1 --> T
-  I2 --> T
+  %% Inputs (single handoff to translate, as in reference)
   I3 --> T
-  I4 --> T
-  I5 --> T
+  I5 --> GK
 
   %% Fail feedback loop
   L1 -->|FAIL| FB
   L2 -->|FAIL| FB
   L3 -->|FAIL| FB
-  FB -.-> T
+  SR -.-> T
   FB -.-> SR
 
   %% GPU dependency for validation layers
@@ -126,6 +129,15 @@ graph TD
   OK --> INJ
   INJ --> CFG
   CFG --> BM
+
+  %% Soft layout helpers (no semantic meaning)
+  I1 --- I2
+  I2 --- I3
+  I3 --- I4
+  I4 --- I5
+  L1 --- FB
+  M --- FB
+  OUT --- CFG
 
   %% Styling
   classDef title fill:transparent,stroke:transparent,color:#2f2f2f,font-weight:bold
