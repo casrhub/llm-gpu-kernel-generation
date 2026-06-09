@@ -145,8 +145,3 @@ Tested on: NVIDIA T4 (Colab), A100
 - **[benchmark/run_campaign.py](benchmark/run_campaign.py)**: Campaign runner with multi-size/seed/model support
 - **[benchmark/operations.py](benchmark/operations.py)**: Benchmark operations and PyTorch reference implementations
 
-## Notes
-
-This is research code exploring whether small models with structured constraints can match or exceed large model performance on code generation tasks. Results may vary by model versions and hardware.
-
-For experiments, see `notas_chema.md` and `actividad_hallazgo_poster.md` (Spanish documentation of project goals and findings).
